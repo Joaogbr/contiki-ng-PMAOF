@@ -182,7 +182,7 @@ def analyze_results(filename, is_testbed):
                     node = int(fields[1][3:])
                 else:
                     ts = int(fields[0]) // 1000 # convert to ms
-                    node = int(fields[1]) 
+                    node = int(fields[1])
             except:
                 # failed to extract timestamp
                 continue

@@ -84,6 +84,13 @@
 #define LINK_STATS_RSSI_LOW                -90
 #endif /* LINK_STATS_RSSI_LOW */
 
+/* Determines how many RSSI values are recorded */
+#ifdef LINK_STATS_CONF_RSSI_ARR_LEN
+#define LINK_STATS_RSSI_ARR_LEN LINK_STATS_CONF_RSSI_ARR_LEN
+#else /* LINK_STATS_CONF_RSSI_ARR_LEN */
+#define LINK_STATS_RSSI_ARR_LEN                5
+#endif /* LINK_STATS_RSSI_ARR_LEN */
+
 /* Special value that signal the RSSI is not initialized */
 #define LINK_STATS_RSSI_UNKNOWN 0x7fff
 
@@ -104,8 +111,9 @@ struct link_packet_counter {
 /* All statistics of a given link */
 struct link_stats {
   clock_time_t last_tx_time;  /* Last Tx timestamp */
+  clock_time_t rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps */
   uint16_t etx;               /* ETX using ETX_DIVISOR as fixed point divisor. Zero if not yet measured. */
-  int16_t rssi;               /* RSSI (received signal strength). LINK_STATS_RSSI_UNKNOWN if not yet measured. */
+  int16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   uint8_t freshness;          /* Freshness of the statistics. Zero if no packets sent yet. */
 #if LINK_STATS_ETX_FROM_PACKET_COUNT
   uint8_t tx_count;           /* Tx count, used for ETX calculation */

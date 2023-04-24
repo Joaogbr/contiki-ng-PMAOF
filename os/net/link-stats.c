@@ -57,7 +57,7 @@
 
 /* EWMA (exponential moving average) used to maintain statistics over time */
 #define EWMA_SCALE                     100
-#define EWMA_ALPHA                      10
+#define EWMA_ALPHA                     100    // Was 10
 #define EWMA_BOOTSTRAP_ALPHA            25
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
@@ -120,10 +120,10 @@ static uint16_t
 guess_etx_from_rssi(const struct link_stats *stats)
 {
   if(stats != NULL) {
-    if(stats->rssi == LINK_STATS_RSSI_UNKNOWN) {
+    if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
       return ETX_DEFAULT * ETX_DIVISOR;
     } else {
-      const int16_t rssi_delta = stats->rssi - LINK_STATS_RSSI_LOW;
+      const int16_t rssi_delta = stats->rssi[0] - LINK_STATS_RSSI_LOW;
       const int16_t bounded_rssi_delta = BOUND(rssi_delta, 0, RSSI_DIFF);
       /* Penalty is in the range from 0 to ETX_DIVISOR */
       const uint16_t penalty = ETX_DIVISOR * bounded_rssi_delta / RSSI_DIFF;
@@ -163,7 +163,10 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
     if(stats == NULL) {
       return; /* No space left, return */
     }
-    stats->rssi = LINK_STATS_RSSI_UNKNOWN;
+    for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
+      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN;
+    }
+    memset(stats->rx_time, 0, sizeof(stats->rx_time));
   }
 
   if(status == MAC_TX_QUEUE_FULL) {
@@ -242,17 +245,33 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     if(stats == NULL) {
       return; /* No space left, return */
     }
-    stats->rssi = LINK_STATS_RSSI_UNKNOWN;
+    for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
+      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN;
+    }
+    memset(stats->rx_time, 0, sizeof(stats->rx_time));
   }
 
-  if(stats->rssi == LINK_STATS_RSSI_UNKNOWN) {
+  if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
     /* Initialize RSSI */
-    stats->rssi = packet_rssi;
+    stats->rssi[0] = packet_rssi;
   } else {
+    /* Update RSSI and Rx timestamp arrays */
+    for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
+      stats->rssi[i] = stats->rssi[i-1];
+      stats->rx_time[i] = stats->rx_time[i-1];
+      LOG_DBG("From: ");
+      LOG_DBG_LLADDR(lladdr);
+      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, stats->rssi[i], i, stats->rx_time[i]);
+    }
     /* Update RSSI EWMA */
-    stats->rssi = ((int32_t)stats->rssi * (EWMA_SCALE - EWMA_ALPHA) +
-        (int32_t)packet_rssi * EWMA_ALPHA) / EWMA_SCALE;
+    stats->rssi[0] = ((int32_t)stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA) +
+        (int32_t)packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // Alpha = 100: no memory
   }
+  /* Update last Rx timestamp */
+  stats->rx_time[0] = clock_time();
+  LOG_DBG("From: ");
+  LOG_DBG_LLADDR(lladdr);
+  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", stats->rssi[0], stats->rx_time[0]);
 
   if(stats->etx == 0) {
     /* Initialize ETX */

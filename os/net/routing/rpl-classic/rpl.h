@@ -58,6 +58,7 @@ typedef uint16_t rpl_ocp_t;
 #define RPL_DAG_MC_LQL                  6 /* Link Quality Level */
 #define RPL_DAG_MC_ETX                  7 /* Expected Transmission Count */
 #define RPL_DAG_MC_LC                   8 /* Link Color */
+#define RPL_DAG_MC_RSSI                 9 /* Received Signal Strength Indicator */
 
 /* IANA Routing Metric/Constraint Common Header Flag field as defined
    in RFC6551. (bit indexes) */
@@ -87,6 +88,7 @@ typedef uint16_t rpl_ocp_t;
 /* IANA Objective Code Point as defined in RFC6550. */
 #define RPL_OCP_OF0     0
 #define RPL_OCP_MRHOF   1
+#define RPL_OCP_MVMTOF   2
 
 struct rpl_metric_object_energy {
   uint8_t flags;
@@ -103,6 +105,7 @@ struct rpl_metric_container {
   union metric_object {
     struct rpl_metric_object_energy energy;
     uint16_t etx;
+    uint16_t rssi;
   } obj;
 };
 typedef struct rpl_metric_container rpl_metric_container_t;
