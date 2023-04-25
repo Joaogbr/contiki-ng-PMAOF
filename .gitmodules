@@ -40,3 +40,6 @@
 [submodule "arch/cpu/gecko/lib/gecko_sdk"]
 	path = arch/cpu/gecko/lib/gecko_sdk
 	url = https://github.com/SiliconLabs/gecko_sdk.git
+[submodule "tools/cooja"]
+	path = tools/cooja
+	url = https://github.com/Joaogbr/cooja-MVMTOF
