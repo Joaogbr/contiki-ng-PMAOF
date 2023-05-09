@@ -37,6 +37,7 @@
 #include "net/nbr-table.h"
 #include "net/link-stats.h"
 #include <stdio.h>
+#include <math.h>
 
 /* Log configuration */
 #include "sys/log.h"
@@ -57,8 +58,9 @@
 
 /* EWMA (exponential moving average) used to maintain statistics over time */
 #define EWMA_SCALE                     100
-#define EWMA_ALPHA                     100    // Was 10
+#define EWMA_ALPHA                      10
 #define EWMA_BOOTSTRAP_ALPHA            25
+#define EWMA_TAU                       (60 * (clock_time_t)CLOCK_SECOND)
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
 #define ETX_DIVISOR                     LINK_STATS_ETX_DIVISOR
@@ -252,23 +254,31 @@ link_stats_input_callback(const linkaddr_t *lladdr)
   }
 
   if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
+    /* Update last Rx timestamp */
+    stats->rx_time[0] = clock_time();
     /* Initialize RSSI */
     stats->rssi[0] = packet_rssi;
   } else {
     /* Update RSSI and Rx timestamp arrays */
     for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
-      stats->rssi[i] = stats->rssi[i-1];
       stats->rx_time[i] = stats->rx_time[i-1];
+      stats->rssi[i] = stats->rssi[i-1];
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
       LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, stats->rssi[i], i, stats->rx_time[i]);
     }
-    /* Update RSSI EWMA */
+    /* Update last Rx timestamp */
+    stats->rx_time[0] = clock_time();
+    /* Update RSSI EMAnext */
+#if ROUTING_CONF_RPL_CLASSIC
+    uint8_t ema_wgt = (uint8_t) (expf(-((float) (stats->rx_time[0] - stats->rx_time[1])) / EWMA_TAU) * EWMA_SCALE);
+    stats->rssi[0] = ((int32_t)stats->rssi[0] * ema_wgt +
+        (int32_t)packet_rssi * (EWMA_SCALE - ema_wgt)) / EWMA_SCALE;
+#else
     stats->rssi[0] = ((int32_t)stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA) +
-        (int32_t)packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // Alpha = 100: no memory
+        (int32_t)packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // If alpha == 100: no memory
+#endif
   }
-  /* Update last Rx timestamp */
-  stats->rx_time[0] = clock_time();
   LOG_DBG("From: ");
   LOG_DBG_LLADDR(lladdr);
   LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", stats->rssi[0], stats->rx_time[0]);

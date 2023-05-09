@@ -44,6 +44,7 @@
  */
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "net/routing/rpl-classic/rpl.h"
 #include "net/routing/rpl-classic/rpl-private.h"
@@ -146,24 +147,35 @@ parent_link_metric(rpl_parent_t *p)
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    if(stats->rssi[0] != LINK_STATS_RSSI_UNKNOWN) {
-      int16_t rssi = stats->rssi[0];
-      //if(abs(rssi) <= MAX_LINK_METRIC) {
-        if(stats->rssi[1] != LINK_STATS_RSSI_UNKNOWN) {
-          // IF previous packet exists, use "nabla" operator
-          int16_t prev_rssi = stats->rssi[1];
-          float intval_seconds = (stats->rx_time[0] - stats->rx_time[1]) / CLOCK_SECOND;
-          float nabla = (rssi - prev_rssi) / intval_seconds;
-          if(nabla > 0) {
-            return 0x02;
-          } else if(nabla < 0) {
-            return 0x03;
-          } else {
-            return 0x01;
-          }
+    int16_t rssi[LINK_STATS_RSSI_ARR_LEN];
+    memcpy(rssi, stats->rssi, sizeof(rssi));
+    if(rssi[0] != LINK_STATS_RSSI_UNKNOWN) {
+      int16_t diff1_rssi[LINK_STATS_RSSI_ARR_LEN-1];
+      int16_t diff2_rssi[LINK_STATS_RSSI_ARR_LEN-2];
+      float diff1_norm = 0;
+      float diff2_norm = 0;
+      uint8_t rssi_cnt = 0;
+      while((rssi[rssi_cnt] != LINK_STATS_RSSI_UNKNOWN) && (rssi_cnt < LINK_STATS_RSSI_ARR_LEN)) {
+        rssi_cnt++;
+      }
+      if(rssi_cnt >= 3) {
+        for(int i = 0; i < rssi_cnt - 1; i++) {
+          diff1_rssi[i] = rssi[i] - rssi[i+1];
         }
-      //}
-      return (uint16_t)MIN(abs(rssi), 0xffff); // ELSE, disregard motion (but penalize?)
+        for(int i = 0; i < rssi_cnt - 2; i++) {
+          diff2_rssi[i] = diff1_rssi[i] - diff1_rssi[i+1];
+        }
+        diff2_norm = ((float) diff2_rssi[0]) / (diff1_rssi[0] + !diff1_rssi[0]);
+        diff1_norm = ((float) diff1_rssi[0] * (1 + fabs(diff2_norm))) / (-rssi[0] + !rssi[0]);
+      } else if(rssi_cnt == 2) {
+        for(int i = 0; i < rssi_cnt - 1; i++) {
+          diff1_rssi[i] = rssi[i] - rssi[i+1];
+        }
+        diff1_norm = ((float) diff1_rssi[0]) / (-rssi[0] + !rssi[0]);
+      }
+      float cf = 1 + fabs(diff1_norm);
+      //LOG_DBG("Current RSSI: %d, Correction Factor: %d%%, Corrected RSSI: %d\n", rssi[0], (uint16_t) (100*cf), (int16_t) (rssi[0]*cf));
+      return (uint16_t)MIN(-rssi[0]*cf, 0xffff);
     }
 #endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
   }
