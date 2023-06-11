@@ -60,7 +60,7 @@
 #define EWMA_SCALE                     100
 #define EWMA_ALPHA                      10
 #define EWMA_BOOTSTRAP_ALPHA            25
-#define EWMA_TAU                       (60 * (clock_time_t)CLOCK_SECOND)
+#define EWMA_TAU                       (10 * (clock_time_t)CLOCK_SECOND)
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
 #define ETX_DIVISOR                     LINK_STATS_ETX_DIVISOR

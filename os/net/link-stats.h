@@ -88,7 +88,7 @@
 #ifdef LINK_STATS_CONF_RSSI_ARR_LEN
 #define LINK_STATS_RSSI_ARR_LEN LINK_STATS_CONF_RSSI_ARR_LEN
 #else /* LINK_STATS_CONF_RSSI_ARR_LEN */
-#define LINK_STATS_RSSI_ARR_LEN                5
+#define LINK_STATS_RSSI_ARR_LEN                3
 #endif /* LINK_STATS_RSSI_ARR_LEN */
 
 /* Special value that signal the RSSI is not initialized */
