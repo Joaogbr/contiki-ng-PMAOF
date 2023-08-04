@@ -8,6 +8,8 @@ CONTIKI=../..
 MAKE_MAC = MAKE_MAC_CSMA
 MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 
+USE_LIBM ?= 1
+
 # Energy usage estimation
 MODULES += os/services/simple-energest
 

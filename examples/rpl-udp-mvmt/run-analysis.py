@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import numpy as np
 import matplotlib.pyplot as pl
 
 ###########################################
@@ -44,7 +45,9 @@ class NodeStats:
         self.rpl_parent = None
         self.rpl_parent_lladdr = None
         self.max_seqnum_sent = 0
-        self.seqnums_received_on_root = set()
+        self.seqnums_received_on_root = [[],[]]
+        self.seqnums_sent = [[],[]]
+        self.e2e_delay = []
         self.parent_packets_tx = 0
         self.parent_packets_ack = 0
         self.parent_packets_queue_dropped = 0
@@ -67,6 +70,8 @@ class NodeStats:
         self.rdc = None
         self.rdc_joined = None
         self.charge = None
+        self.avg_e2e_delay = 0
+        self.jitter = 0
 
     # calculate the final metrics
     def calc(self):
@@ -119,7 +124,7 @@ class NodeStats:
             self.par = 0.0
 
         expected = self.max_seqnum_sent
-        actual = len(self.seqnums_received_on_root)
+        actual = len(self.seqnums_received_on_root[0])
         if expected:
             self.pdr = 100.0 * actual / expected
         else:
@@ -129,7 +134,7 @@ class NodeStats:
             self.parent_packets_ack, \
             self.parent_packets_queue_dropped, \
             self.max_seqnum_sent, \
-            len(self.seqnums_received_on_root)
+            len(self.seqnums_received_on_root[0])
 
 
 ###########################################
@@ -215,11 +220,28 @@ def analyze_results(filename, is_testbed):
                 nodes[node].rpl_parent_lladdr = extract_macaddr(line.split(" -> ")[1]) #tsch_time_source
                 continue
 
+            # 2799582 3 [INFO: CSMA      ] sending to 0000.0000.0000.0000, len 10, seqno 128, queue length 1, free packets %zu
+            if "sending to" in line:
+                continue
+
+            # 2799582 3 [INFO: TSCH      ] send packet to 0000.0000.0000.0000 with seqno 128, queue 1, len 1
+            if "send packet to" in line:
+                continue
+
+            # 30194781 3 [INFO: CSMA      ] received packet from c10c.0000.0000.0002, seqno 19, len 10
+            if "received packet from" in line:
+                continue
+
+            # 30194781 3 [INFO: TSCH      ] received from c10c.0000.0000.0002 with seqno 19
+            if "received from" in line:
+                continue
+
             # 2497128 2 [INFO: RPL       ] rpl_set_preferred_parent fe80::201:1:1:1 used to be NULL
             if "rpl_set_preferred_parent" in line:
                 nodes[node].rpl_parent_changes += 1
                 nodes[node].rpl_parent = extract_ipaddr(fields[6])
                 if nodes[node].rpl_parent is not None:
+                    print("Node {} joined RPL DAG through parent".format(nodes[node].id), "{}".format(nodes[node].rpl_parent), "at {} seconds".format(ts / 1000))
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
@@ -230,6 +252,7 @@ def analyze_results(filename, is_testbed):
                 nodes[node].rpl_parent_changes += 1
                 nodes[node].rpl_parent = extract_ipaddr_pair(fields[7:])[1]
                 if nodes[node].rpl_parent is not None:
+                    print("Node {} joined RPL DAG through parent".format(nodes[node].id), "{}".format(nodes[node].rpl_parent), "at {} seconds".format(ts / 1000))
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
@@ -242,6 +265,7 @@ def analyze_results(filename, is_testbed):
 
             # 2497128 1 [INFO: App       ] rpl callback: node has left the network
             if "node has left the network" in line:
+                print("Node {} has left the network".format(nodes[node].id), "at {} seconds".format(ts / 1000))
                 nodes[node].has_joined = False
                 nodes[node].rpl_time_joined_msec += (ts - nodes[node].rpl_join_time_msec)
                 nodes[node].rpl_join_time_msec = None
@@ -255,6 +279,12 @@ def analyze_results(filename, is_testbed):
                     node_id = int(fields[9].split("=")[1])
                     node_id_to_device_id[node_id] = node
                 nodes[node].max_seqnum_sent = max(nodes[node].max_seqnum_sent, seqnum)
+                ind_s = nodes[node].seqnums_sent[0].index(seqnum) if seqnum in nodes[node].seqnums_sent[0] else None
+                if ind_s is not None:
+                    nodes[node].seqnums_sent[1][ind_s] = ts
+                else:
+                    nodes[node].seqnums_sent[0].append(seqnum)
+                    nodes[node].seqnums_sent[1].append(ts)
                 continue
 
             # 123047424 1 [INFO: App       ] app receive packet seqnum=1 from=fd00::208:8:8:8
@@ -266,7 +296,19 @@ def analyze_results(filename, is_testbed):
                     from_node = node_id_to_device_id.get(from_node, 0)
                 if from_node not in nodes:
                     nodes[from_node] = NodeStats(from_node)
-                nodes[from_node].seqnums_received_on_root.add(seqnum)
+                ind_r = nodes[from_node].seqnums_received_on_root[0].index(seqnum) if seqnum in nodes[from_node].seqnums_received_on_root[0] else None
+                if ind_r is not None:
+                    nodes[from_node].seqnums_received_on_root[1][ind_r] = ts
+                else:
+                    nodes[from_node].seqnums_received_on_root[0].append(seqnum)
+                    nodes[from_node].seqnums_received_on_root[1].append(ts)
+                    ind_r = nodes[from_node].seqnums_received_on_root[0].index(seqnum)
+                try:
+                    ind_s = nodes[from_node].seqnums_sent[0].index(seqnum)
+                    nodes[from_node].e2e_delay.append(nodes[from_node].seqnums_received_on_root[1][ind_r] - nodes[from_node].seqnums_sent[1][ind_s])
+                except:
+                    print("WARNING: Received seqnum not in sent index.")
+                    continue
                 continue
 
             # 600142000 28 [INFO: Link Stats] num packets: tx=0 ack=0 rx=0 queue_drops=0 to=0014.0014.0014.0014
@@ -336,16 +378,25 @@ def analyze_results(filename, is_testbed):
         if n.rpl_join_time_msec is not None:
             n.rpl_time_joined_msec += (sim_time_ms - n.rpl_join_time_msec)
         ll_sent, ll_acked, ll_queue_dropped, e2e_sent, e2e_received = n.calc()
+        n.avg_e2e_delay = np.mean(n.e2e_delay)
+        n.jitter = n.e2e_delay[0]/16
+        i = 1
+        while i < len(n.e2e_delay):
+            n.jitter = n.jitter*(15/16) + abs(n.e2e_delay[i] - n.e2e_delay[i-1])/16
+            i += 1
         if n.is_valid or PLOT_ALL_NODES:
             d = {
                 "id": n.id,
                 "pdr": n.pdr,
                 "par": n.par,
+                "packets_sent": n.max_seqnum_sent,
                 "rpl_switches": n.rpl_parent_changes,
                 "duty_cycle": n.rdc,
                 "duty_cycle_joined": n.rdc_joined,
                 "charge": n.charge,
-                "time_joined": n.rpl_time_joined_msec / 1000
+                "time_joined": n.rpl_time_joined_msec / 1000,
+                "avg_e2e_delay": n.avg_e2e_delay,
+                "jitter": n.jitter
             }
             r.append(d)
             total_ll_sent += ll_sent
@@ -409,11 +460,14 @@ def main():
 
     plot(results, "pdr", "Packet Delivery Ratio, %")
     plot(results, "par", "Packet Acknowledgement Ratio, %")
+    plot(results, "packets_sent", "Number of packets sent")
     plot(results, "rpl_switches", "RPL parent switches")
     plot(results, "duty_cycle", "Radio Duty Cycle, %")
     plot(results, "duty_cycle_joined", "Joined Radio Duty Cycle, %")
     plot(results, "charge", "Charge consumption, mC")
     plot(results, "time_joined", "Total time joined to DAG, s")
+    plot(results, "avg_e2e_delay", "Average E2E delay, ms")
+    plot(results, "jitter", "E2E jitter, ms")
 
 #######################################################
 

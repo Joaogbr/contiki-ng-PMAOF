@@ -317,7 +317,6 @@ endif
 ifeq ($(MAKE_ROUTING),MAKE_ROUTING_RPL_CLASSIC)
   CFLAGS += -DROUTING_CONF_RPL_CLASSIC=1
   MODULES += $(CONTIKI_NG_ROUTING_DIR)/rpl-classic
-  TARGET_LIBFILES += -lm
 else ifeq ($(MAKE_ROUTING),MAKE_ROUTING_RPL_LITE)
   CFLAGS += -DROUTING_CONF_RPL_LITE=1
   MODULES += $(CONTIKI_NG_ROUTING_DIR)/rpl-lite
@@ -552,6 +551,12 @@ endif
 
 ifndef LD
   LD = $(CC)
+endif
+
+# Default: do not use libm
+USE_LIBM ?= 0
+ifeq ($(USE_LIBM),1)
+  TARGET_LIBFILES += -lm
 endif
 
 ifndef CUSTOM_RULE_LINK

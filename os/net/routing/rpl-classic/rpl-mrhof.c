@@ -53,6 +53,11 @@
 #define LOG_MODULE "RPL"
 #define LOG_LEVEL LOG_LEVEL_RPL
 
+#if RPL_DAG_MC == RPL_DAG_MC_RSSI
+#define MAX_LINK_METRIC     128 /* dBm */
+#define PARENT_SWITCH_THRESHOLD 10 /* dBm */
+#define MAX_PATH_COST      2048   /* dBm */
+#else
 /*
  * RFC6551 and RFC6719 do not mandate the use of a specific formula to
  * compute the ETX value. This MRHOF implementation relies on the
@@ -98,6 +103,7 @@
 
 /* Reject parents that have a higher path cost than the following. */
 #define MAX_PATH_COST      32768   /* Eq path ETX of 256 */
+#endif /* RPL_DAG_MC == RPL_DAG_MC_RSSI */
 
 /*---------------------------------------------------------------------------*/
 static void
@@ -130,12 +136,22 @@ parent_link_metric(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   if(stats != NULL) {
+#if RPL_DAG_MC == RPL_DAG_MC_ETX
 #if RPL_MRHOF_SQUARED_ETX
     uint32_t squared_etx = ((uint32_t)stats->etx * stats->etx) / LINK_STATS_ETX_DIVISOR;
     return (uint16_t)MIN(squared_etx, 0xffff);
 #else /* RPL_MRHOF_SQUARED_ETX */
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
+#elif RPL_DAG_MC == RPL_DAG_MC_RSSI
+    int16_t rssi = stats->rssi[0];
+    if(rssi != LINK_STATS_RSSI_UNKNOWN) {
+      LOG_DBG("From: ");
+      LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
+      LOG_DBG_("Current RSSI: %d\n", rssi);
+      return (uint16_t)MIN(-rssi, 0xffff);
+    }
+#endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
   }
   return 0xffff;
 }
@@ -158,6 +174,9 @@ parent_path_cost(rpl_parent_t *p)
   case RPL_DAG_MC_ENERGY:
     base = p->mc.obj.energy.energy_est << 8;
     break;
+    case RPL_DAG_MC_RSSI:
+      base = p->mc.obj.rssi;
+      break;
   default:
     base = p->rank;
     break;
@@ -303,6 +322,10 @@ update_metric_container(rpl_instance_t *instance)
     /* Energy_est is only one byte -- use the least significant byte
        of the path metric. */
     instance->mc.obj.energy.energy_est = path_cost >> 8;
+    break;
+  case RPL_DAG_MC_RSSI:
+    instance->mc.length = sizeof(instance->mc.obj.rssi);
+    instance->mc.obj.rssi = path_cost;
     break;
   default:
     LOG_WARN("MRHOF, non-supported MC %u\n", instance->mc.type);

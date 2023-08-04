@@ -58,9 +58,9 @@
 
 /* EWMA (exponential moving average) used to maintain statistics over time */
 #define EWMA_SCALE                     100
-#define EWMA_ALPHA                      10
+#define EWMA_ALPHA                      40 //10
 #define EWMA_BOOTSTRAP_ALPHA            25
-#define EWMA_TAU                       (10 * (clock_time_t)CLOCK_SECOND)
+#define EMA_TAU                       (10 * (clock_time_t)CLOCK_SECOND)
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
 #define ETX_DIVISOR                     LINK_STATS_ETX_DIVISOR
@@ -125,7 +125,7 @@ guess_etx_from_rssi(const struct link_stats *stats)
     if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
       return ETX_DEFAULT * ETX_DIVISOR;
     } else {
-      const int16_t rssi_delta = stats->rssi[0] - LINK_STATS_RSSI_LOW;
+      const int16_t rssi_delta = (int16_t) stats->rssi[0] - LINK_STATS_RSSI_LOW;
       const int16_t bounded_rssi_delta = BOUND(rssi_delta, 0, RSSI_DIFF);
       /* Penalty is in the range from 0 to ETX_DIVISOR */
       const uint16_t penalty = ETX_DIVISOR * bounded_rssi_delta / RSSI_DIFF;
@@ -257,7 +257,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     /* Update last Rx timestamp */
     stats->rx_time[0] = clock_time();
     /* Initialize RSSI */
-    stats->rssi[0] = packet_rssi;
+    stats->rssi[0] = (float) packet_rssi;
   } else {
     /* Update RSSI and Rx timestamp arrays */
     for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
@@ -265,23 +265,22 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       stats->rssi[i] = stats->rssi[i-1];
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
-      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, stats->rssi[i], i, stats->rx_time[i]);
+      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, (int16_t) stats->rssi[i], i, stats->rx_time[i]);
     }
     /* Update last Rx timestamp */
     stats->rx_time[0] = clock_time();
+#if LINK_STATS_RSSI_WITH_EMANEXT
     /* Update RSSI EMAnext */
-#if ROUTING_CONF_RPL_CLASSIC
-    uint8_t ema_wgt = (uint8_t) (expf(-((float) (stats->rx_time[0] - stats->rx_time[1])) / EWMA_TAU) * EWMA_SCALE);
-    stats->rssi[0] = ((int32_t)stats->rssi[0] * ema_wgt +
-        (int32_t)packet_rssi * (EWMA_SCALE - ema_wgt)) / EWMA_SCALE;
+    float ema_wgt = expf(-((float) (stats->rx_time[0] - stats->rx_time[1])) / EMA_TAU);
+    stats->rssi[0] = stats->rssi[0] * ema_wgt + ((float) packet_rssi) * (1.0 - ema_wgt);
 #else
-    stats->rssi[0] = ((int32_t)stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA) +
-        (int32_t)packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // If alpha == 100: no memory
+    stats->rssi[0] = (stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA) +
+        packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // If alpha == 100: no memory
 #endif
   }
   LOG_DBG("From: ");
   LOG_DBG_LLADDR(lladdr);
-  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", stats->rssi[0], stats->rx_time[0]);
+  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", (int16_t) stats->rssi[0], stats->rx_time[0]);
 
   if(stats->etx == 0) {
     /* Initialize ETX */

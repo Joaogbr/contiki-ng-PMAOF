@@ -44,12 +44,23 @@
 /* Enable printing of packet counters */
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
 //#define LINK_STATS_CONF_RSSI_ARR_LEN             10
+#define LINK_STATS_CONF_RSSI_WITH_EMANEXT        1
 
 /* RPL config */
 #define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
 #define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
 #define RPL_CONF_WITH_MC 1
 #define RPL_CONF_DAG_MC RPL_DAG_MC_RSSI
+
+/* Always larger than the link cost, merely acts as a hop count (RFC6719)*/
+#define RPL_CONF_MIN_HOPRANKINC          1280
+#define RPL_CONF_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
+
+//#define RPL_CONF_DIO_INTERVAL_MIN        3 //12
+//#define RPL_DIO_INTERVAL_DOUBLINGS       20 //8
+//#define RPL_CONF_PROBING_INTERVAL        (30 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
+//#define RPL_CONF_DIS_INTERVAL            30 //60
+//#define RPL_CONF_WITH_DAO_ACK            1 //0
 
 /* Application settings */
 #define APP_SEND_INTERVAL_SEC 10

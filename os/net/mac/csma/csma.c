@@ -43,6 +43,7 @@
 #include "net/mac/mac-sequence.h"
 #include "net/packetbuf.h"
 #include "net/netstack.h"
+#include "net/link-stats.h"
 
 /* Log configuration */
 #include "sys/log.h"
@@ -81,12 +82,16 @@ input_packet(void)
   if(packetbuf_datalen() == CSMA_ACK_LEN) {
     /* Ignore ack packets */
     LOG_DBG("ignored ack\n");
+    /* Don't pass to upper layers, but still count it in link stats */
+    //link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
   } else if(csma_security_parse_frame() < 0) {
     LOG_ERR("failed to parse %u\n", packetbuf_datalen());
   } else if(!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
                                          &linkaddr_node_addr) &&
             !packetbuf_holds_broadcast()) {
     LOG_WARN("not for us\n");
+    /* Don't pass to upper layers, but still count it in link stats */
+    link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
   } else if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &linkaddr_node_addr)) {
     LOG_WARN("frame from ourselves\n");
   } else {

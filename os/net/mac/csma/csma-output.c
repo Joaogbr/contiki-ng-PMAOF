@@ -204,7 +204,9 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
       ret = MAC_TX_COLLISION;
     } else {
 
-      switch(NETSTACK_RADIO.transmit(packetbuf_totlen())) {
+      radio_result_t foo = NETSTACK_RADIO.transmit(packetbuf_totlen());
+      RTIMER_BUSYWAIT(RTIMER_SECOND / 200);
+      switch(foo) {
       case RADIO_TX_OK:
         if(is_broadcast) {
           ret = MAC_TX_OK;

@@ -15,6 +15,13 @@
 #define NETSTACK_CONF_RADIO   cc2420_driver
 #endif /* NETSTACK_CONF_RADIO */
 
+#define CC2420_CONF_AUTOACK   0
+#define CSMA_CONF_SEND_SOFT_ACK                  (!CC2420_CONF_AUTOACK)
+#if CSMA_CONF_SEND_SOFT_ACK
+//#define CSMA_CONF_ACK_WAIT_TIME                  RTIMER_SECOND / 300
+//#define CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME   RTIMER_SECOND / 500
+#endif /* CSMA_CONF_SEND_SOFT_ACK */
+
 /* Symbol for the TSCH 15ms timeslot timing template */
 #define TSCH_CONF_ARCH_HDR_PATH "dev/radio/cc2420/cc2420-tsch-15ms.h"
 
