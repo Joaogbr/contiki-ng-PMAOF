@@ -99,7 +99,7 @@
 #endif /* LINK_STATS_RSSI_WITH_EMANEXT */
 
 /* Special value that signal the RSSI is not initialized */
-#define LINK_STATS_RSSI_UNKNOWN 32767.0 //0x7fff
+#define LINK_STATS_RSSI_UNKNOWN 32767.0f //0x7fff
 
 typedef uint16_t link_packet_stat_t;
 

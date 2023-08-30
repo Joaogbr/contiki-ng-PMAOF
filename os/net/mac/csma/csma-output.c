@@ -205,7 +205,7 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
     } else {
 
       radio_result_t foo = NETSTACK_RADIO.transmit(packetbuf_totlen());
-      RTIMER_BUSYWAIT(RTIMER_SECOND / 200);
+      RTIMER_BUSYWAIT(RTIMER_SECOND / 800);
       switch(foo) {
       case RADIO_TX_OK:
         if(is_broadcast) {

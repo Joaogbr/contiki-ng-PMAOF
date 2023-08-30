@@ -179,7 +179,7 @@ parent_link_metric(rpl_parent_t *p)
               diff2_norm[i] = diff2_rssi[i] / ((float) (diff_t + !diff_t)/CLOCK_SECOND);
             }
             if((fabs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD) && (diff2_rssi[0]/diff1_rssi[0] > 0)) {
-              cf = 1 + fabs(diff1_norm[0])*expf(fabs(diff2_norm[0])/CF_BETA) / CF_ALPHA;
+              cf = (1 + fabs(diff1_norm[0])/CF_ALPHA)*expf(fabs(diff2_norm[0])/CF_BETA);
             } else {
               cf = 1 + fabs(diff1_norm[0]) / CF_ALPHA;
             }
@@ -194,6 +194,9 @@ parent_link_metric(rpl_parent_t *p)
             cf = 1 + fabs(diff1_norm[0]) / CF_ALPHA;
           }
         }
+        /*if(link_cost*cf >= SOME_THRESHOLD) {
+          some_trickle_callback(FORCE_INCONSISTENCY);
+        } TODO: Implement*/
         LOG_DBG("From: ");
         LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
         LOG_DBG_(" -> Current RSSI: %d, Correction Factor: %d%%, Corrected RSSI: %d\n", (int16_t) stats->rssi[0], (uint16_t) (100*cf), (int16_t) (stats->rssi[0]*cf));
@@ -300,9 +303,16 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
     if(p1_cost < p2_cost + PARENT_SWITCH_THRESHOLD &&
        p1_cost > p2_cost - PARENT_SWITCH_THRESHOLD) {
+      /*if((p1->rank < p2->rank ? p2->rank - p1->rank : p1->rank - p2->rank) > HOPCOUNT_THRESHOLD) {
+       return p1->rank < p2->rank ? p1 : p2;
+      }*/
       return dag->preferred_parent;
     }
   }
+
+  /*if(p1_cost == p2_cost) {
+    return p1->rank < p2->rank ? p1 : p2;
+  }*/
 
   return p1_cost < p2_cost ? p1 : p2;
 }

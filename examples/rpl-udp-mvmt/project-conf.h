@@ -31,10 +31,11 @@
 
 /* Logging */
 #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_INFO
-#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_INFO
+#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_LS                          LOG_LEVEL_INFO
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
 #if !MAC_CONF_WITH_TSCH
@@ -63,8 +64,8 @@
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
 /* Application settings */
-#define APP_SEND_INTERVAL_SEC 10
 #define APP_WARM_UP_PERIOD_SEC 120
 
-#define SICSLOWPAN_CONF_FRAG 0 /* No fragmentation */
-#define UIP_CONF_BUFFER_SIZE 200
+#define SICSLOWPAN_CONF_FRAG 0 /* 1 if using cam, 0 otherwise */
+#define UIP_CONF_BUFFER_SIZE 200 /* 300 if using cam, 200 otherwise */
+//#define QUEUEBUF_CONF_NUM 8

@@ -67,21 +67,23 @@ udp_rx_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  char str[32];
+  char str[10];
   char *ptr;
   uint32_t seqnumrx;
-  memcpy(str, (char *) data, sizeof(str));
-  seqnumrx = strtoul(&str[6], &ptr, 10);
+  memcpy(str, (char *) &data[datalen-10], sizeof(str));
+  seqnumrx = strtoul(str, &ptr, 10);
   LOG_INFO("Received request '%.*s'\n", datalen, (char *) data);
   LOG_INFO("app receive packet seqnum=%" PRIu32 " from=", seqnumrx);
   LOG_INFO_6ADDR(sender_addr);
   LOG_INFO_("\n");
 #if WITH_SERVER_REPLY
-  /* send back the same string to the client as an echo reply */
+  /* send back a hello string to the client as a reply */
+  char rep[18];
   seqnumtx++;
+  snprintf(rep, sizeof(rep), "hello, %10" PRIu32 "", seqnumrx);
   LOG_INFO("Sending response.\n");
   LOG_INFO("app generate packet seqnum=%" PRIu32 " node_id=%u\n", seqnumtx, node_id);
-  simple_udp_sendto(&udp_conn, data, datalen, sender_addr);
+  simple_udp_sendto(&udp_conn, rep, strlen(rep), sender_addr);
 #endif /* WITH_SERVER_REPLY */
 }
 /*---------------------------------------------------------------------------*/
@@ -101,7 +103,13 @@ mvmt_rpl_callback_parent_switch(rpl_parent_t *old, rpl_parent_t *new)
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_server_process, ev, data)
 {
+  //static struct etimer periodic_timer;
+
   PROCESS_BEGIN();
+
+  //etimer_set(&periodic_timer, APP_WARM_UP_PERIOD_SEC * CLOCK_SECOND);
+
+  //PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 
   /* Initialize DAG root */
   LOG_INFO("set as root\n");

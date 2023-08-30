@@ -42,7 +42,7 @@
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "Link Stats"
-#define LOG_LEVEL LOG_LEVEL_MAC
+#define LOG_LEVEL LOG_LEVEL_LS
 
 /* Maximum value for the Tx count counter */
 #define TX_COUNT_MAX                    32
