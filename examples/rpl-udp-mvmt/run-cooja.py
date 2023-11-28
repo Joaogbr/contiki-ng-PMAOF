@@ -2,16 +2,30 @@
 
 import sys
 import os
+import argparse
 from subprocess import Popen, PIPE, STDOUT, CalledProcessError
 
 # get the path of this example
 SELF_PATH = os.path.dirname(os.path.abspath(__file__))
+SIM_PATH = SELF_PATH
 # move two levels up
 CONTIKI_PATH = os.path.dirname(os.path.dirname(SELF_PATH))
 
 COOJA_PATH = os.path.normpath(os.path.join(CONTIKI_PATH, "tools", "cooja"))
 cooja_input = 'cooja.csc'
 cooja_output = 'COOJA.testlog'
+
+#######################################################
+# Create separate folder for simulation
+
+def make_dir(mkdir):
+    if mkdir is not None:
+        global SIM_PATH
+        SIM_PATH = os.path.join(SELF_PATH, mkdir)
+        global cooja_output
+        cooja_output = os.path.join(SIM_PATH, cooja_output)
+        if not os.path.exists(SIM_PATH):
+            os.makedirs(SIM_PATH)
 
 #######################################################
 # Run a child process and get its output
@@ -51,7 +65,7 @@ def execute_test(cooja_file):
         return False
 
     filename = os.path.join(SELF_PATH, cooja_file)
-    args = " ".join([COOJA_PATH + "/gradlew --no-watch-fs --parallel --build-cache -p", COOJA_PATH, "run --args='--contiki=" + CONTIKI_PATH, "--no-gui", "--logdir=" + SELF_PATH, filename + "'"])
+    args = " ".join([COOJA_PATH + "/gradlew --no-watch-fs --parallel --build-cache -p", COOJA_PATH, "run --args='--contiki=" + CONTIKI_PATH, "--no-gui", "--logdir=" + SIM_PATH, filename + "'"])
     sys.stdout.write("  Running Cooja, args={}\n".format(args))
 
     (retcode, output) = run_subprocess(args, '')
@@ -82,10 +96,15 @@ def execute_test(cooja_file):
 # Run the application
 
 def main():
-    input_file = cooja_input
-    if len(sys.argv) > 1:
-        # change from the default
-        input_file = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--to-dir', default=None, dest='to_dir',
+        help='Specify name of new directory where the simulation files will be placed')
+    parser.add_argument('--fname', default=cooja_input, dest='fname',
+        help='Specify name of simulation file')
+    pargs = parser.parse_args()
+
+    make_dir(pargs.to_dir)
+    input_file = pargs.fname
 
     if not os.access(input_file, os.R_OK):
         print('Simulation script "{}" does not exist'.format(input_file))

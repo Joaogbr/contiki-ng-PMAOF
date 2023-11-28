@@ -31,10 +31,10 @@
 
 /* Logging */
 #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_INFO
-#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_NONE
-#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_NONE
-#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_NONE
-#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_WARN
+#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_WARN
+#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_WARN
+#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_WARN
 #define LOG_CONF_LEVEL_LS                          LOG_LEVEL_INFO
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
@@ -42,10 +42,19 @@
 #define RPL_CALLBACK_PARENT_SWITCH mvmt_rpl_callback_parent_switch
 #endif
 
+#define PROCESS_CONF_NUMEVENTS       32
+
 /* Enable printing of packet counters */
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
 //#define LINK_STATS_CONF_RSSI_ARR_LEN             10
 #define LINK_STATS_CONF_RSSI_WITH_EMANEXT        1
+
+/* Handle 16 neighbors */
+#define NBR_TABLE_CONF_MAX_NEIGHBORS    24
+//#define NBR_TABLE_CONF_GC_GET_WORST            rpl_nbr_gc_get_worst_path
+
+/* Handle 16 routes    */
+#define NETSTACK_MAX_ROUTE_ENTRIES      24
 
 /* RPL config */
 #define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
@@ -55,13 +64,15 @@
 
 /* Always larger than the link cost, merely acts as a hop count (RFC6719)*/
 #define RPL_CONF_MIN_HOPRANKINC          1280
-#define RPL_CONF_MAX_RANKINC             (7 * RPL_MIN_HOPRANKINC)
+#define RPL_CONF_MAX_RANKINC             (16 * RPL_MIN_HOPRANKINC)
 
-//#define RPL_CONF_DIO_INTERVAL_MIN        3 //12
-//#define RPL_DIO_INTERVAL_DOUBLINGS       20 //8
+//#define RPL_CONF_DIO_INTERVAL_MIN        12 //12
+//#define RPL_CONF_DIO_INTERVAL_DOUBLINGS  5 //8
 //#define RPL_CONF_PROBING_INTERVAL        (30 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
+
+#define RPL_CONF_MOP RPL_MOP_NON_STORING
 
 /* Application settings */
 #define APP_WARM_UP_PERIOD_SEC 120

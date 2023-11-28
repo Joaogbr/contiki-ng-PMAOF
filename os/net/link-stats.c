@@ -58,9 +58,11 @@
 
 /* EWMA (exponential moving average) used to maintain statistics over time */
 #define EWMA_SCALE                     100
+#define EWMA_SCALE_FIX16               fix16_from_int(EWMA_SCALE)
 #define EWMA_ALPHA                      40 //10
 #define EWMA_BOOTSTRAP_ALPHA            25
 #define EMA_TAU                       (10 * (clock_time_t)CLOCK_SECOND)
+#define EMA_TAU_FIX16                 fix16_from_int(EMA_TAU)
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
 #define ETX_DIVISOR                     LINK_STATS_ETX_DIVISOR
@@ -122,10 +124,10 @@ static uint16_t
 guess_etx_from_rssi(const struct link_stats *stats)
 {
   if(stats != NULL) {
-    if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
+    if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN_FIX16) {
       return ETX_DEFAULT * ETX_DIVISOR;
     } else {
-      const int16_t rssi_delta = (int16_t) stats->rssi[0] - LINK_STATS_RSSI_LOW;
+      const int16_t rssi_delta = fix16_to_int(stats->rssi[0]) - LINK_STATS_RSSI_LOW;
       const int16_t bounded_rssi_delta = BOUND(rssi_delta, 0, RSSI_DIFF);
       /* Penalty is in the range from 0 to ETX_DIVISOR */
       const uint16_t penalty = ETX_DIVISOR * bounded_rssi_delta / RSSI_DIFF;
@@ -166,7 +168,7 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
       return; /* No space left, return */
     }
     for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
-      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN;
+      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN_FIX16;
     }
     memset(stats->rx_time, 0, sizeof(stats->rx_time));
   }
@@ -248,16 +250,17 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       return; /* No space left, return */
     }
     for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
-      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN;
+      stats->rssi[i] = LINK_STATS_RSSI_UNKNOWN_FIX16;
     }
     memset(stats->rx_time, 0, sizeof(stats->rx_time));
+    stats->last_link_metric = LINK_STATS_RSSI_UNKNOWN_FIX16;
   }
 
-  if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN) {
+  if(stats->rssi[0] == LINK_STATS_RSSI_UNKNOWN_FIX16) {
     /* Update last Rx timestamp */
     stats->rx_time[0] = clock_time();
     /* Initialize RSSI */
-    stats->rssi[0] = (float) packet_rssi;
+    stats->rssi[0] = fix16_from_int(packet_rssi);
   } else {
     /* Update RSSI and Rx timestamp arrays */
     for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
@@ -265,22 +268,27 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       stats->rssi[i] = stats->rssi[i-1];
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
-      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, (int16_t) stats->rssi[i], i, stats->rx_time[i]);
+      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, fix16_to_int(stats->rssi[i]), i, stats->rx_time[i]);
     }
     /* Update last Rx timestamp */
     stats->rx_time[0] = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
     /* Update RSSI EMAnext */
-    float ema_wgt = expf(-((float) (stats->rx_time[0] - stats->rx_time[1])) / EMA_TAU);
-    stats->rssi[0] = stats->rssi[0] * ema_wgt + ((float) packet_rssi) * (1.0 - ema_wgt);
+    clock_time_t diff_t = stats->rx_time[0] - stats->rx_time[1];
+    clock_time_t diff_s_int = diff_t / EMA_TAU;
+    clock_time_t diff_s_mod = (diff_t + !diff_t) % EMA_TAU;
+    fix16_t diff_s_fix16 = diff_s_int >= 0x7FFF ? 0x7FFF0000 : fix16_add(fix16_from_int(diff_s_int),
+        fix16_div(fix16_from_int(diff_s_mod), EMA_TAU_FIX16));
+    fix16_t ema_wgt = fix16_exp(-diff_s_fix16);
+    stats->rssi[0] = fix16_add(fix16_mul(stats->rssi[0], ema_wgt), fix16_mul(fix16_from_int(packet_rssi), fix16_sub(0x00010000, ema_wgt)));
 #else
-    stats->rssi[0] = (stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA) +
-        packet_rssi * EWMA_ALPHA) / EWMA_SCALE; // If alpha == 100: no memory
+    stats->rssi[0] = fix16_div(fix16_add(fix16_mul(stats->rssi[0], fix16_from_int(EWMA_SCALE - EWMA_ALPHA)),
+        fix16_from_int(packet_rssi * EWMA_ALPHA)), EWMA_SCALE_FIX16); // If alpha == 100: no memory
 #endif
   }
   LOG_DBG("From: ");
   LOG_DBG_LLADDR(lladdr);
-  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", (int16_t) stats->rssi[0], stats->rx_time[0]);
+  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->rssi[0]), stats->rx_time[0]);
 
   if(stats->etx == 0) {
     /* Initialize ETX */
@@ -294,6 +302,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
 #if LINK_STATS_PACKET_COUNTERS
   stats->cnt_current.num_packets_rx++;
 #endif
+  stats->link_stats_updated = 1;
 }
 /*---------------------------------------------------------------------------*/
 #if LINK_STATS_PACKET_COUNTERS
@@ -358,4 +367,14 @@ link_stats_init(void)
 {
   nbr_table_register(link_stats, NULL);
   ctimer_set(&periodic_timer, FRESHNESS_HALF_LIFE, periodic, NULL);
+}
+/*---------------------------------------------------------------------------*/
+/* Update OF link metric */
+void
+link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric)
+{
+  struct link_stats *stats;
+  stats = nbr_table_get_from_lladdr(link_stats, lladdr);
+  stats->last_link_metric = link_metric;
+  stats->link_stats_updated = 0;
 }

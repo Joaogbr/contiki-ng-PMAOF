@@ -2,6 +2,7 @@
 
 import os
 import sys
+import argparse
 import time
 import numpy as np
 import matplotlib.pyplot as pl
@@ -13,6 +14,8 @@ PLOT_ALL_NODES = True
 
 ###########################################
 
+SELF_PATH = os.path.dirname(os.path.abspath(__file__))
+SIM_PATH = SELF_PATH
 LOG_FILE = 'COOJA.testlog'
 
 COORDINATOR_ID = 1
@@ -31,6 +34,8 @@ CC2650_RADIO_CPU_DEEP_SLEEP_CURRENT = 0.010 # empirical
 node_id_to_device_id = {}
 
 ###########################################
+
+output_stream = []
 
 class NodeStats:
     def __init__(self, id):
@@ -92,7 +97,7 @@ class NodeStats:
                 + CC2650_RADIO_CPU_DEEP_SLEEP_CURRENT * cpu_deep_sleep_sec
 
         else:
-            print("warning: no energest results for {}".format(self.id))
+            output_stream.append("warning: no energest results for {}".format(self.id))
             self.rdc = 0.0
             self.charge = 0.0
 
@@ -103,17 +108,17 @@ class NodeStats:
             self.rdc_joined = 0
 
 
-        if self.tsch_join_time_sec is None:
-            print("node {} never associated TSCH".format(self.id))
+        #if self.tsch_join_time_sec is None:
+            #output_stream.append("node {} never associated TSCH".format(self.id))
             #return 0, 0, 0, 0, 0
 
         if self.rpl_time_joined_msec == 0:
-            print("node {} never joined RPL DAG".format(self.id))
+            output_stream.append("node {} never joined RPL DAG".format(self.id))
             return 0, 0, 0, 0, 0
 
 
         if self.max_seqnum_sent == 0:
-            print("node {} never sent any data packets".format(self.id))
+            output_stream.append("node {} never sent any data packets".format(self.id))
             return 0, 0, 0, 0, 0
 
         self.is_valid = True
@@ -129,6 +134,17 @@ class NodeStats:
             self.pdr = 100.0 * actual / expected
         else:
             self.pdr = 0.0
+
+        if len(self.e2e_delay):
+            self.avg_e2e_delay = np.mean(self.e2e_delay)
+            self.jitter = self.e2e_delay[0]/16
+            i = 1
+            while i < len(self.e2e_delay):
+                self.jitter = self.jitter*(15/16) + abs(self.e2e_delay[i] - self.e2e_delay[i-1])/16
+                i += 1
+        else:
+            self.avg_e2e_delay = -1
+            self.jitter = -1
 
         return self.parent_packets_tx, \
             self.parent_packets_ack, \
@@ -241,7 +257,7 @@ def analyze_results(filename, is_testbed):
                 nodes[node].rpl_parent_changes += 1
                 nodes[node].rpl_parent = extract_ipaddr(fields[6])
                 if nodes[node].rpl_parent is not None:
-                    print("Node {} joined RPL DAG through parent".format(nodes[node].id), "{}".format(nodes[node].rpl_parent), "at {} seconds".format(ts / 1000))
+                    output_stream.append("Node {} joined RPL DAG through parent".format(nodes[node].id) + " {}".format(nodes[node].rpl_parent) + " at {} seconds".format(ts / 1000))
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
@@ -252,7 +268,7 @@ def analyze_results(filename, is_testbed):
                 nodes[node].rpl_parent_changes += 1
                 nodes[node].rpl_parent = extract_ipaddr_pair(fields[7:])[1]
                 if nodes[node].rpl_parent is not None:
-                    print("Node {} joined RPL DAG through parent".format(nodes[node].id), "{}".format(nodes[node].rpl_parent), "at {} seconds".format(ts / 1000))
+                    output_stream.append("Node {} joined RPL DAG through parent".format(nodes[node].id) + " {}".format(nodes[node].rpl_parent) + " at {} seconds".format(ts / 1000))
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
@@ -265,7 +281,7 @@ def analyze_results(filename, is_testbed):
 
             # 2497128 1 [INFO: App       ] rpl callback: node has left the network
             if "node has left the network" in line:
-                print("Node {} has left the network".format(nodes[node].id), "at {} seconds".format(ts / 1000))
+                output_stream.append("Node {} has left the network".format(nodes[node].id) + " at {} seconds".format(ts / 1000))
                 nodes[node].has_joined = False
                 nodes[node].rpl_time_joined_msec += (ts - nodes[node].rpl_join_time_msec)
                 nodes[node].rpl_join_time_msec = None
@@ -279,9 +295,12 @@ def analyze_results(filename, is_testbed):
                     node_id = int(fields[9].split("=")[1])
                     node_id_to_device_id[node_id] = node
                 nodes[node].max_seqnum_sent = max(nodes[node].max_seqnum_sent, seqnum)
-                ind_s = nodes[node].seqnums_sent[0].index(seqnum) if seqnum in nodes[node].seqnums_sent[0] else None
-                if ind_s is not None:
-                    nodes[node].seqnums_sent[1][ind_s] = ts
+                if seqnum in nodes[node].seqnums_sent[0]:
+                    # Could be a duplicate!
+                    output_stream.append("WARNING: Application message with seqnum = {}".format(seqnum) + " already sent. Might be duplicate")
+                    #if seqnum not in nodes[node].seqnums_received_on_root[0]: # This is not failproof, maybe never update ts at all?
+                        #ind_s = nodes[node].seqnums_sent[0].index(seqnum)
+                        #nodes[node].seqnums_sent[1][ind_s] = ts
                 else:
                     nodes[node].seqnums_sent[0].append(seqnum)
                     nodes[node].seqnums_sent[1].append(ts)
@@ -296,19 +315,21 @@ def analyze_results(filename, is_testbed):
                     from_node = node_id_to_device_id.get(from_node, 0)
                 if from_node not in nodes:
                     nodes[from_node] = NodeStats(from_node)
-                ind_r = nodes[from_node].seqnums_received_on_root[0].index(seqnum) if seqnum in nodes[from_node].seqnums_received_on_root[0] else None
-                if ind_r is not None:
-                    nodes[from_node].seqnums_received_on_root[1][ind_r] = ts
+                if seqnum in nodes[from_node].seqnums_received_on_root[0]:
+                    # Duplicates should be dropped by link layer, so this condition should never be met
+                    output_stream.append("WARNING: Application message with seqnum = {}".format(seqnum) + " already received. Must be duplicate")
+                    #ind_r = nodes[from_node].seqnums_received_on_root[0].index(seqnum)
+                    #nodes[from_node].seqnums_received_on_root[1][ind_r] = ts
                 else:
                     nodes[from_node].seqnums_received_on_root[0].append(seqnum)
                     nodes[from_node].seqnums_received_on_root[1].append(ts)
-                    ind_r = nodes[from_node].seqnums_received_on_root[0].index(seqnum)
-                try:
-                    ind_s = nodes[from_node].seqnums_sent[0].index(seqnum)
-                    nodes[from_node].e2e_delay.append(nodes[from_node].seqnums_received_on_root[1][ind_r] - nodes[from_node].seqnums_sent[1][ind_s])
-                except:
-                    print("WARNING: Received seqnum not in sent index.")
-                    continue
+                    ind_r = len(nodes[from_node].seqnums_received_on_root[0]) - 1
+                    try:
+                        ind_s = nodes[from_node].seqnums_sent[0].index(seqnum)
+                        nodes[from_node].e2e_delay.append(nodes[from_node].seqnums_received_on_root[1][ind_r] - nodes[from_node].seqnums_sent[1][ind_s])
+                    except:
+                        output_stream.append("WARNING: Received seqnum = {}".format(seqnum) + " not in sent index")
+                        continue
                 continue
 
             # 600142000 28 [INFO: Link Stats] num packets: tx=0 ack=0 rx=0 queue_drops=0 to=0014.0014.0014.0014
@@ -361,16 +382,28 @@ def analyze_results(filename, is_testbed):
 
     if sim_time_ms is None:
         # failed to parse sim end time
-        print("WARNING: Could not parse the total simulation time. Using last timestamp recorded instead.")
+        output_stream.append("WARNING: Could not parse the total simulation time. Using last timestamp recorded instead.")
         sim_time_ms = ts
     r = []
     # link layer PAR
     total_ll_sent = 0
     total_ll_acked = 0
     total_ll_queue_dropped = 0
+    # RPL metrics
+    total_rpl_parent_switches = 0
+    total_rpl_time_joined = 0
     # end to end PDR
     total_e2e_sent = 0
     total_e2e_received = 0
+    # end to end delay metrics
+    total_e2e_delay = 0
+    total_e2e_jitter = 0
+    # justice index
+    ji_numerator = 0
+    ji_denominator = 0
+    justice_index = 0
+
+    discnt = 0
     for k in sorted(nodes.keys()):
         n = nodes[k]
         if n.id == COORDINATOR_ID:
@@ -378,12 +411,6 @@ def analyze_results(filename, is_testbed):
         if n.rpl_join_time_msec is not None:
             n.rpl_time_joined_msec += (sim_time_ms - n.rpl_join_time_msec)
         ll_sent, ll_acked, ll_queue_dropped, e2e_sent, e2e_received = n.calc()
-        n.avg_e2e_delay = np.mean(n.e2e_delay)
-        n.jitter = n.e2e_delay[0]/16
-        i = 1
-        while i < len(n.e2e_delay):
-            n.jitter = n.jitter*(15/16) + abs(n.e2e_delay[i] - n.e2e_delay[i-1])/16
-            i += 1
         if n.is_valid or PLOT_ALL_NODES:
             d = {
                 "id": n.id,
@@ -402,11 +429,26 @@ def analyze_results(filename, is_testbed):
             total_ll_sent += ll_sent
             total_ll_acked += ll_acked
             total_ll_queue_dropped += ll_queue_dropped
+            total_rpl_parent_switches += n.rpl_parent_changes
+            total_rpl_time_joined += n.rpl_time_joined_msec / 1000
             total_e2e_sent += e2e_sent
             total_e2e_received += e2e_received
+            # Do not count if no messages got received at root
+            if n.avg_e2e_delay != -1:
+                total_e2e_delay += n.avg_e2e_delay
+                total_e2e_jitter += n.jitter
+                ji_numerator += n.avg_e2e_delay
+                ji_denominator += n.avg_e2e_delay**2
+            else:
+                discnt += 1
     ll_par = 100.0 * total_ll_acked / total_ll_sent if total_ll_sent else 0.0
+    avg_rpl_p_switches = total_rpl_parent_switches / (k-1)
+    avg_rpl_time_joined = total_rpl_time_joined / (k-1)
     e2e_pdr = 100.0 * total_e2e_received / total_e2e_sent if total_e2e_sent else 0.0
-    return r, ll_par, total_ll_queue_dropped, e2e_pdr
+    avg_total_e2e_delay = (total_e2e_delay / (k-discnt-1)) if (k-discnt-1) else 0.0
+    avg_total_e2e_jitter = (total_e2e_jitter / (k-discnt-1)) if (k-discnt-1) else 0.0
+    justice_index = (ji_numerator ** 2) / (ji_denominator * (k-1)) if (k-discnt-1) else 0.0
+    return r, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_p_switches, avg_rpl_time_joined, e2e_pdr, avg_total_e2e_delay, avg_total_e2e_jitter, justice_index
 
 #######################################################
 # Plot the results of a given metric as a bar chart
@@ -431,32 +473,57 @@ def plot(results, metric, ylabel):
     if metric == "pdr":
         miny = min(80, min(data))
         pl.ylim([miny, 100])
+    elif metric == "avg_e2e_delay" or metric == "jitter":
+        pl.ylim(ymin=-1)
+        pl.axhline(0, color='k', linewidth=0.8)
     else:
         pl.ylim(ymin=0)
 
-    pl.savefig("plot_{}.pdf".format(metric), format="pdf", bbox_inches='tight')
+    pl.savefig(os.path.join(SIM_PATH, "plot_{}.pdf".format(metric)), format="pdf", bbox_inches='tight')
     pl.close()
 
 #######################################################
 # Run the application
 
 def main():
-    input_file = LOG_FILE
-    if len(sys.argv) > 1:
-        # change from the default
-        input_file = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--to-dir', default=None, dest='to_dir',
+        help='Specify name of directory where the simulation result files will be placed')
+    parser.add_argument('--fname', default=LOG_FILE, dest='fname',
+        help='Specify name of log file')
+    pargs = parser.parse_args()
+
+    if pargs.to_dir is not None:
+        global SIM_PATH
+        SIM_PATH = os.path.join(SELF_PATH, pargs.to_dir)
+    input_file = os.path.join(SIM_PATH, pargs.fname)
+    output_file = os.path.join(SIM_PATH, "analysis_results.txt")
+    if os.path.isfile(output_file):
+        os.remove(output_file)
+    of = open(output_file, "w")
 
     if not os.access(input_file, os.R_OK):
-        print('The input file "{}" does not exist'.format(input_file))
+        output_stream.append('The input file "{}" does not exist'.format(input_file))
         exit(-1)
 
     with open(input_file, "r") as f:
         is_testbed = "Starting COOJA logger" not in f.read()
 
-    results, ll_par, ll_queue_dropped, e2e_pdr = analyze_results(input_file, is_testbed)
+    results, ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_ps, avg_rpl_tj, e2e_pdr, e2e_avgt_delay, e2e_avgt_jitter, jus_idx = analyze_results(
+        input_file, is_testbed)
 
-    print("Link-layer PAR={:.2f} ({} packets queue dropped) End-to-end PDR={:.2f}".format(
+    output_stream.append("Link-layer PAR = {:.2f} (total of {} packets dropped in queue) End-to-end PDR = {:.2f}".format(
         ll_par, ll_queue_dropped, e2e_pdr))
+    output_stream.append("Total packets sent = {} Total packets received = {}".format(
+        e2e_sent, e2e_received))
+    output_stream.append("Avg. no. of parent switches = {:.2f} Avg. time joined = {:.2f} s".format(
+        avg_rpl_ps, avg_rpl_tj))
+    output_stream.append("Avg. end-to-end total delay = {:.2f} ms Avg. end-to-end total jitter = {:.2f} ms".format(
+        e2e_avgt_delay, e2e_avgt_jitter))
+    output_stream.append("Jain's Justice Index = {:.3f}".format(jus_idx))
+
+    print(*output_stream, sep = "\n", file = sys.stdout)
+    print(*output_stream, sep = "\n", file = of)
 
     plot(results, "pdr", "Packet Delivery Ratio, %")
     plot(results, "par", "Packet Acknowledgement Ratio, %")

@@ -91,7 +91,7 @@ input_packet(void)
             !packetbuf_holds_broadcast()) {
     LOG_WARN("not for us\n");
     /* Don't pass to upper layers, but still count it in link stats */
-    link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
+    //link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
   } else if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &linkaddr_node_addr)) {
     LOG_WARN("frame from ourselves\n");
   } else {
@@ -100,6 +100,8 @@ input_packet(void)
     /* Check for duplicate packet. */
     duplicate = mac_sequence_is_duplicate();
     if(duplicate) {
+      /* Don't pass to upper layers, but still count it in link stats */
+      //link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
       /* Drop the packet. */
       LOG_WARN("drop duplicate link layer packet from ");
       LOG_WARN_LLADDR(packetbuf_addr(PACKETBUF_ADDR_SENDER));
@@ -112,7 +114,7 @@ input_packet(void)
     if(packetbuf_attr(PACKETBUF_ATTR_MAC_ACK)) {
       ackdata[0] = FRAME802154_ACKFRAME;
       ackdata[1] = 0;
-      ackdata[2] = ((uint8_t *)packetbuf_hdrptr())[2];
+      ackdata[2] = ((uint8_t *)packetbuf_hdrptr())[2] & 0xff;
       NETSTACK_RADIO.send(ackdata, CSMA_ACK_LEN);
     }
 #endif /* CSMA_SEND_SOFT_ACK */

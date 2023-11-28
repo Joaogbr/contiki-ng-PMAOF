@@ -70,7 +70,7 @@ udp_rx_callback(struct simple_udp_connection *c,
   char str[10];
   char *ptr;
   uint32_t seqnumrx;
-  memcpy(str, (char *) &data[datalen-10], sizeof(str));
+  strcpy(str, (char *) &data[datalen-10]);
   seqnumrx = strtoul(str, &ptr, 10);
   LOG_INFO("Received request '%.*s'\n", datalen, (char *) data);
   LOG_INFO("app receive packet seqnum=%" PRIu32 " from=", seqnumrx);
@@ -98,6 +98,23 @@ mvmt_rpl_callback_parent_switch(rpl_parent_t *old, rpl_parent_t *new)
   } else if(!NETSTACK_ROUTING.node_is_reachable()) {
     LOG_INFO("rpl callback: node has left the network\n");
   }
+}
+#endif
+/*---------------------------------------------------------------------------*/
+#if NBR_TABLE_GC_GET_WORST==rpl_nbr_gc_get_worst_path
+const linkaddr_t *
+rpl_nbr_gc_get_worst_path(const linkaddr_t *lladdr1, const linkaddr_t *lladdr2)
+{
+  rpl_parent_t *p1 = rpl_get_parent((uip_lladdr_t *)lladdr1);
+  rpl_parent_t *p2 = rpl_get_parent((uip_lladdr_t *)lladdr2);
+  if(p1 != NULL && p2 != NULL && p1->dag != NULL) {
+    rpl_instance_t *instance = p1->dag->instance;
+    if(instance != NULL && instance->of != NULL &&
+       instance->of->parent_path_cost != NULL) {
+      return instance->of->parent_path_cost(p2) > instance->of->parent_path_cost(p1) ? lladdr2 : lladdr1;
+    }
+  }
+  return rpl_rank_via_parent(p2) > rpl_rank_via_parent(p1) ? lladdr2 : lladdr1;
 }
 #endif
 /*---------------------------------------------------------------------------*/

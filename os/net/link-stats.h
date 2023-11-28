@@ -33,6 +33,7 @@
 #ifndef LINK_STATS_H_
 #define LINK_STATS_H_
 
+#include "lib/fixmath.h"
 #include "net/linkaddr.h"
 
 /* ETX fixed point divisor. 128 is the value used by RPL (RFC 6551 and RFC 6719) */
@@ -99,7 +100,8 @@
 #endif /* LINK_STATS_RSSI_WITH_EMANEXT */
 
 /* Special value that signal the RSSI is not initialized */
-#define LINK_STATS_RSSI_UNKNOWN 32767.0f //0x7fff
+#define LINK_STATS_RSSI_UNKNOWN 0x7fff
+#define LINK_STATS_RSSI_UNKNOWN_FIX16 fix16_from_int(LINK_STATS_RSSI_UNKNOWN)
 
 typedef uint16_t link_packet_stat_t;
 
@@ -120,8 +122,10 @@ struct link_stats {
   clock_time_t last_tx_time;  /* Last Tx timestamp */
   clock_time_t rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps */
   uint16_t etx;               /* ETX using ETX_DIVISOR as fixed point divisor. Zero if not yet measured. */
-  float rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
+  fix16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   uint8_t freshness;          /* Freshness of the statistics. Zero if no packets sent yet. */
+  uint8_t link_stats_updated; /* Set when values are updated */
+  fix16_t last_link_metric; /* OF calculated link metric */
 #if LINK_STATS_ETX_FROM_PACKET_COUNT
   uint8_t tx_count;           /* Tx count, used for ETX calculation */
   uint8_t ack_count;          /* ACK count, used for ETX calculation */
@@ -147,5 +151,7 @@ void link_stats_init(void);
 void link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx);
 /* Packet input callback. Updates statistics for receptions on a given link */
 void link_stats_input_callback(const linkaddr_t *lladdr);
+/* Updates Objective Function result for a given link */
+void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric);
 
 #endif /* LINK_STATS_H_ */

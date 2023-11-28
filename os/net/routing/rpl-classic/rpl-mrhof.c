@@ -43,6 +43,8 @@
  * @{
  */
 
+#include "lib/fixmath.h"
+
 #include "net/routing/rpl-classic/rpl.h"
 #include "net/routing/rpl-classic/rpl-private.h"
 #include "net/nbr-table.h"
@@ -54,7 +56,7 @@
 #define LOG_LEVEL LOG_LEVEL_RPL
 
 #if RPL_DAG_MC == RPL_DAG_MC_RSSI
-#define MAX_LINK_METRIC     128 /* dBm */
+#define MAX_LINK_METRIC     102 /* dBm */
 #define PARENT_SWITCH_THRESHOLD 10 /* dBm */
 #define MAX_PATH_COST      2048   /* dBm */
 #else
@@ -144,11 +146,11 @@ parent_link_metric(rpl_parent_t *p)
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    int16_t rssi = stats->rssi[0];
+    int16_t rssi = fix16_to_int(stats->rssi[0]);
     if(rssi != LINK_STATS_RSSI_UNKNOWN) {
       LOG_DBG("From: ");
       LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-      LOG_DBG_("Current RSSI: %d\n", rssi);
+      LOG_DBG_(" -> Current RSSI: %d\n", rssi);
       return (uint16_t)MIN(-rssi, 0xffff);
     }
 #endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */

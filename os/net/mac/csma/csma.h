@@ -72,7 +72,11 @@
 #define CSMA_AFTER_ACK_DETECTED_WAIT_TIME       RTIMER_SECOND / 1500
 #endif /* CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME */
 
+#ifdef CSMA_CONF_ACK_LEN
+#define CSMA_ACK_LEN CSMA_CONF_ACK_LEN
+#else /* CSMA_CONF_ACK_LEN */
 #define CSMA_ACK_LEN 3
+#endif /* CSMA_CONF_ACK_LEN */
 
 /* just a default - with LLSEC, etc */
 #define CSMA_MAC_MAX_HEADER 21

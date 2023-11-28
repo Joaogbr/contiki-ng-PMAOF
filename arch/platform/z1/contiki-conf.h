@@ -15,12 +15,16 @@
 #define NETSTACK_CONF_RADIO   cc2420_driver
 #endif /* NETSTACK_CONF_RADIO */
 
-#define CC2420_CONF_AUTOACK   0
+#define CC2420_CONF_AUTOACK                      1
 #define CSMA_CONF_SEND_SOFT_ACK                  (!CC2420_CONF_AUTOACK)
-#if CSMA_CONF_SEND_SOFT_ACK
+#if CC2420_CONF_AUTOACK
+//#define CSMA_CONF_ACK_WAIT_TIME                  RTIMER_SECOND / 1024
+//#define CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME   RTIMER_SECOND / 2048
+#else /* CC2420_CONF_AUTOACK */
+//#define CSMA_CONF_ACK_LEN                        4
 //#define CSMA_CONF_ACK_WAIT_TIME                  RTIMER_SECOND / 300
 //#define CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME   RTIMER_SECOND / 500
-#endif /* CSMA_CONF_SEND_SOFT_ACK */
+#endif /* CC2420_CONF_AUTOACK */
 
 /* Symbol for the TSCH 15ms timeslot timing template */
 #define TSCH_CONF_ARCH_HDR_PATH "dev/radio/cc2420/cc2420-tsch-15ms.h"
@@ -36,7 +40,9 @@
 #define UIP_CONF_BUFFER_SIZE		140
 #endif
 
+#ifndef PROCESS_CONF_NUMEVENTS
 #define PROCESS_CONF_NUMEVENTS       8
+#endif
 #define PROCESS_CONF_STATS           1
 /*#define PROCESS_CONF_FASTPOLL      4*/
 

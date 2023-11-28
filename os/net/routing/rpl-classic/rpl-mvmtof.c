@@ -44,7 +44,7 @@
  */
 
 #include <stdlib.h>
-#include <math.h>
+#include "lib/fixmath.h"
 
 #include "net/routing/rpl-classic/rpl.h"
 #include "net/routing/rpl-classic/rpl-private.h"
@@ -58,11 +58,16 @@
 
 #if RPL_DAG_MC == RPL_DAG_MC_RSSI
 #define MAX_LINK_METRIC     1024 /* dBm */
+#define MAX_LINK_METRIC_FIX16 fix16_from_int(MAX_LINK_METRIC)
 #define PARENT_SWITCH_THRESHOLD 96 /* dBm */
 #define MAX_PATH_COST      32768 /* dBm */
-#define CF_ALPHA           1
-#define CF_BETA            1
-#define RSSI_NOISE_THRESHOLD    0
+#define CF_ALPHA           1.0f
+#define CF_ALPHA_FIX16     fix16_from_float(CF_ALPHA)
+#define CF_BETA            1.0f
+#define CF_BETA_FIX16      fix16_from_float(CF_BETA)
+#define RSSI_NOISE_THRESHOLD    0.0f
+#define RSSI_NOISE_THRESHOLD_FIX16 fix16_from_float(RSSI_NOISE_THRESHOLD)
+#define CLOCK_SECOND_FIX16    fix16_from_int(CLOCK_SECOND)
 #else
 /*
  * RFC6551 and RFC6719 do not mandate the use of a specific formula to
@@ -150,59 +155,102 @@ parent_link_metric(rpl_parent_t *p)
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    if(stats->rssi[0] != LINK_STATS_RSSI_UNKNOWN) {
-      float link_cost = -10*stats->rssi[0];
-      if(link_cost <= MAX_LINK_METRIC) {
-        float diff1_rssi[LINK_STATS_RSSI_ARR_LEN-1], diff2_rssi[LINK_STATS_RSSI_ARR_LEN-2];
-        float diff1_norm[LINK_STATS_RSSI_ARR_LEN-1] = {0};
-        float diff2_norm[LINK_STATS_RSSI_ARR_LEN-2] = {0};
-        float cf = 1;
-        uint8_t rssi_cnt = LINK_STATS_RSSI_ARR_LEN;
-        clock_time_t diff_t;
-        while((rssi_cnt > 0) && (stats->rssi[rssi_cnt-1] == LINK_STATS_RSSI_UNKNOWN)) {
-          rssi_cnt--;
-        }
-        if(rssi_cnt >= 3) {
-          for(int i = 0; i < rssi_cnt - 1; i++) {
-            diff1_rssi[i] = stats->rssi[i] - stats->rssi[i+1];
+    if(stats->rssi[0] != LINK_STATS_RSSI_UNKNOWN_FIX16) {
+      if(stats->link_stats_updated) {
+        fix16_t result;
+        fix16_t link_cost = - stats->rssi[0];
+        if(fix16_mul(0x000A0000, link_cost) <= MAX_LINK_METRIC_FIX16) {
+          fix16_t diff1_rssi[2/*LINK_STATS_RSSI_ARR_LEN-1*/], diff2_rssi[1/*LINK_STATS_RSSI_ARR_LEN-2*/];
+          fix16_t diff1_norm[1/*LINK_STATS_RSSI_ARR_LEN-1*/] = {0};
+          fix16_t diff2_norm[1/*LINK_STATS_RSSI_ARR_LEN-2*/] = {0};
+          fix16_t cf = 0x00010000; // (fix16_t) 1
+          uint8_t rssi_cnt = LINK_STATS_RSSI_ARR_LEN;
+          clock_time_t diff_t, diff_s_int, diff_s_mod;
+          fix16_t diff_s_fix16;
+          while((rssi_cnt > 0) && (stats->rssi[rssi_cnt-1] == LINK_STATS_RSSI_UNKNOWN_FIX16)) {
+            rssi_cnt--;
           }
-          for(int i = 0; i < rssi_cnt - 2; i++) {
-            diff2_rssi[i] = diff1_rssi[i] - diff1_rssi[i+1];
+          if(rssi_cnt >= 3) {
+            for(int i = 0; i < 2/*rssi_cnt - 1*/; i++) {
+              diff1_rssi[i] = fix16_sub(stats->rssi[i], stats->rssi[i+1]);
+            }
+            for(int i = 0; i < 1/*rssi_cnt - 2*/; i++) {
+              diff2_rssi[i] = fix16_sub(diff1_rssi[i], diff1_rssi[i+1]);
+            }
+            if(fix_abs(diff1_rssi[0]) > RSSI_NOISE_THRESHOLD_FIX16) {
+              for(int i = 0; i < 1/*rssi_cnt - 1*/; i++) {
+                diff_t = stats->rx_time[i] - stats->rx_time[i+1];
+                diff_s_int = diff_t / CLOCK_SECOND;
+                diff_s_mod = (diff_t + !diff_t) % CLOCK_SECOND;
+                diff_s_fix16 = diff_s_int > 0x7FFF ? 0x7FFF0000 : fix16_add(fix16_from_int(diff_s_int),
+                    fix16_div(fix16_from_int(diff_s_mod), CLOCK_SECOND_FIX16));
+                diff1_norm[i] = fix16_div(diff1_rssi[i], diff_s_fix16);
+              }
+              cf = fix16_add(cf, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16));
+              if((fix_abs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD_FIX16) && ((diff2_rssi[0] ^ diff1_rssi[0]) >= 0)) {
+                for(int i = 0; i < 1/*rssi_cnt - 2*/; i++) {
+                  diff_t = stats->rx_time[i] - stats->rx_time[i+2];
+                  diff_s_int = diff_t / CLOCK_SECOND;
+                  diff_s_mod = (diff_t + !diff_t) % CLOCK_SECOND;
+                  diff_s_fix16 = diff_s_int > 0x7FFF ? 0x7FFF0000 : fix16_add(fix16_from_int(diff_s_int),
+                      fix16_div(fix16_from_int(diff_s_mod), CLOCK_SECOND_FIX16));
+                  diff2_norm[i] = fix16_div(diff2_rssi[i], diff_s_fix16);
+                }
+
+                cf = fix16_add(cf, fix16_sq(fix16_mul(diff2_norm[0], CF_BETA_FIX16)));
+                /*cf = fix16_mul(fix16_add(0x00010000, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16)),
+                    fix16_add(0x00010000, fix16_sq(fix16_mul(diff2_norm[0], CF_BETA_FIX16))));*/
+                /*cf = fix16_add(0x00010000, fix16_mul(fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16),
+                    fix16_add(0x00010000, fix16_sq(fix16_mul(diff2_norm[0], CF_BETA_FIX16)))));*/
+                /*cf = fix16_add(fix16_add(0x00010000, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16)),
+                    fix16_sq(fix16_mul(diff2_norm[0], CF_BETA_FIX16)));*/
+                /*cf = fix16_add(0x00010000, fix16_mul(fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16),
+                    fix16_exp(fix16_mul(fix_abs(diff2_norm[0]), CF_BETA_FIX16))));*/
+                /*cf = fix16_mul(fix16_add(0x00010000, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16)),
+                    fix16_exp(fix16_mul(fix_abs(diff2_norm[0]), CF_BETA_FIX16)));*/
+                /*cf = fix16_add(fix16_add(0x00010000, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16)),
+                    fix16_exp(fix16_mul(diff2_norm[0], CF_BETA_FIX16)));*/
+              }
+            } /*else if((fabs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD) && (diff2_norm[0]/diff1_norm[0] > 0)) {
+              cf = expf(diff2_norm[0]*CF_BETA);
+            }*/
+          } else if(rssi_cnt == 2) {
+            diff1_rssi[0] = fix16_sub(stats->rssi[0], stats->rssi[1]);
+            if(fix_abs(diff1_rssi[0]) > RSSI_NOISE_THRESHOLD_FIX16) {
+              diff_t = stats->rx_time[0] - stats->rx_time[1];
+              diff_s_int = diff_t / CLOCK_SECOND;
+              diff_s_mod = (diff_t + !diff_t) % CLOCK_SECOND;
+              diff_s_fix16 = diff_s_int > 0x7FFF ? 0x7FFF0000 : fix16_add(fix16_from_int(diff_s_int),
+                  fix16_div(fix16_from_int(diff_s_mod), CLOCK_SECOND_FIX16));
+              diff1_norm[0] = fix16_div(diff1_rssi[0], diff_s_fix16);
+              cf = fix16_add(cf, fix16_mul(fix_abs(diff1_norm[0]), CF_ALPHA_FIX16));
+            }
           }
-          if(fabs(diff1_rssi[0]) > RSSI_NOISE_THRESHOLD) {
-            for(int i = 0; i < rssi_cnt - 1; i++) {
-              diff_t = stats->rx_time[i] - stats->rx_time[i+1];
-              diff1_norm[i] = diff1_rssi[i] / ((float) (diff_t + !diff_t)/CLOCK_SECOND);
-            }
-            for(int i = 0; i < rssi_cnt - 2; i++) {
-              diff_t = stats->rx_time[i] - stats->rx_time[i+2];
-              diff2_norm[i] = diff2_rssi[i] / ((float) (diff_t + !diff_t)/CLOCK_SECOND);
-            }
-            if((fabs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD) && (diff2_rssi[0]/diff1_rssi[0] > 0)) {
-              cf = (1 + fabs(diff1_norm[0])/CF_ALPHA)*expf(fabs(diff2_norm[0])/CF_BETA);
-            } else {
-              cf = 1 + fabs(diff1_norm[0]) / CF_ALPHA;
-            }
-          } /*else if((fabs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD) && (diff2_norm[0]/diff1_norm[0] > 0)) {
-            cf = expf(diff2_norm[0]/CF_BETA);
-          }*/
-        } else if(rssi_cnt == 2) {
-          diff1_rssi[0] = stats->rssi[0] - stats->rssi[1];
-          if(fabs(diff1_rssi[0]) > RSSI_NOISE_THRESHOLD) {
+          /*if(link_cost*cf >= SOME_THRESHOLD) {
+            some_trickle_callback(FORCE_INCONSISTENCY);
+          } TODO: Implement*/
+          LOG_DBG("From: ");
+          LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
+          LOG_DBG_(" -> Current RSSI: %d, Correction Factor: %d%%, Corrected RSSI: %d\n", fix16_to_int(stats->rssi[0]),
+              fix16_to_int(fix16_mul(fix16_from_int(100), cf)), fix16_to_int(fix16_mul(stats->rssi[0], cf)));
+          result = MIN(fix16_mul(link_cost, cf), MAX_LINK_METRIC_FIX16);
+          /*if(stats->last_link_metric <= MAX_LINK_METRIC_FIX16) {
             diff_t = stats->rx_time[0] - stats->rx_time[1];
-            diff1_norm[0] = diff1_rssi[0] / ((float) (diff_t + !diff_t)/CLOCK_SECOND);
-            cf = 1 + fabs(diff1_norm[0]) / CF_ALPHA;
-          }
+            diff_s_int = diff_t / (10 * CLOCK_SECOND);
+            diff_s_mod = (diff_t + !diff_t) % (10 * CLOCK_SECOND);
+            diff_s_fix16 = diff_s_int >= 0x7FFF ? 0x7FFF0000 : fix16_add(fix16_from_int(diff_s_int),
+                fix16_div(fix16_from_int(diff_s_mod), fix16_from_int(10 * CLOCK_SECOND)));
+            fix16_t ema_wgt = fix16_exp(-diff_s_fix16);
+            result = fix16_add(fix16_mul(stats->last_link_metric, ema_wgt), fix16_mul(result, fix16_sub(0x00010000, ema_wgt)));
+          }*/
+          link_stats_metric_update_callback(rpl_get_parent_lladdr(p), result);
+          return (uint16_t) fix16_to_int(result);
         }
-        /*if(link_cost*cf >= SOME_THRESHOLD) {
-          some_trickle_callback(FORCE_INCONSISTENCY);
-        } TODO: Implement*/
-        LOG_DBG("From: ");
-        LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-        LOG_DBG_(" -> Current RSSI: %d, Correction Factor: %d%%, Corrected RSSI: %d\n", (int16_t) stats->rssi[0], (uint16_t) (100*cf), (int16_t) (stats->rssi[0]*cf));
-        return (uint16_t)MIN(rintf(link_cost*cf), MAX_LINK_METRIC);
+        result = MIN(fix16_mul(0x000A0000, link_cost), fix16_from_int(RPL_MIN_HOPRANKINC));
+        link_stats_metric_update_callback(rpl_get_parent_lladdr(p), result);
+        return (uint16_t) fix16_to_int(result);
       }
-      return (uint16_t)MIN(rintf(link_cost), RPL_MIN_HOPRANKINC);
+      return (uint16_t) fix16_to_int(stats->last_link_metric);
     }
 #endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
   }
@@ -303,15 +351,18 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
     if(p1_cost < p2_cost + PARENT_SWITCH_THRESHOLD &&
        p1_cost > p2_cost - PARENT_SWITCH_THRESHOLD) {
-      /*if((p1->rank < p2->rank ? p2->rank - p1->rank : p1->rank - p2->rank) > HOPCOUNT_THRESHOLD) {
-       return p1->rank < p2->rank ? p1 : p2;
-      }*/
       return dag->preferred_parent;
     }
   }
 
-  /*if(p1_cost == p2_cost) {
-    return p1->rank < p2->rank ? p1 : p2;
+  /*if(p1_cost < p2_cost + PARENT_SWITCH_THRESHOLD &&
+     p1_cost > p2_cost - PARENT_SWITCH_THRESHOLD) {
+    // Maintain the stability of the preferred parent in case of similar ranks.
+    if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
+      return dag->preferred_parent;
+    } else {
+      return p1->rank < p2->rank ? p1 : p2;
+    }
   }*/
 
   return p1_cost < p2_cost ? p1 : p2;
