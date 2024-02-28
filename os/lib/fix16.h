@@ -230,6 +230,13 @@ extern fix16_t fix16_log2(fix16_t x) FIXMATH_FUNC_ATTRS;
  */
 extern fix16_t fix16_slog2(fix16_t x) FIXMATH_FUNC_ATTRS;
 
+/* Converts the time in ticks to seconds using fixed-point arithmetic */
+extern fix16_t get_seconds_from_ticks(uint32_t time_ticks, uint16_t ticks_per_second);
+
+/* Exponential Moving Average (EMA) function. */
+extern fix16_t fix16_ema(fix16_t prev_ema, fix16_t new_val,
+                         fix16_t time_diff_secs, fix16_t tau);
+
 /*! Convert fix16_t value to a string.
  * Required buffer length for largest values is 13 bytes.
  */

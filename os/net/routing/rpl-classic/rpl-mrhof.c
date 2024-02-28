@@ -56,9 +56,9 @@
 #define LOG_LEVEL LOG_LEVEL_RPL
 
 #if RPL_DAG_MC == RPL_DAG_MC_RSSI
-#define MAX_LINK_METRIC     102 /* dBm */
-#define PARENT_SWITCH_THRESHOLD 10 /* dBm */
-#define MAX_PATH_COST      2048   /* dBm */
+#define MAX_LINK_METRIC     1024 /* dBm */
+#define PARENT_SWITCH_THRESHOLD 96 /* dBm */
+#define MAX_PATH_COST      32768   /* dBm */
 #else
 /*
  * RFC6551 and RFC6719 do not mandate the use of a specific formula to
@@ -146,12 +146,12 @@ parent_link_metric(rpl_parent_t *p)
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    int16_t rssi = fix16_to_int(stats->rssi[0]);
-    if(rssi != LINK_STATS_RSSI_UNKNOWN) {
+    int16_t arssi = fix16_to_int(fix16_mul(fix16_from_int(10), fix_abs(stats->rssi[0])));
+    if(arssi != LINK_STATS_RSSI_UNKNOWN) {
       LOG_DBG("From: ");
       LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-      LOG_DBG_(" -> Current RSSI: %d\n", rssi);
-      return (uint16_t)MIN(-rssi, 0xffff);
+      LOG_DBG_(" -> Current RSSI: %d\n", arssi);
+      return (uint16_t)MIN(arssi, 0xffff);
     }
 #endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
   }

@@ -38,15 +38,12 @@
 #define LOG_CONF_LEVEL_LS                          LOG_LEVEL_INFO
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
-#if !MAC_CONF_WITH_TSCH
-#define RPL_CALLBACK_PARENT_SWITCH mvmt_rpl_callback_parent_switch
-#endif
-
 #define PROCESS_CONF_NUMEVENTS       32
 
 /* Enable printing of packet counters */
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
 //#define LINK_STATS_CONF_RSSI_ARR_LEN             10
+#define LINK_STATS_CONF_ETX_WITH_EMANEXT         0
 #define LINK_STATS_CONF_RSSI_WITH_EMANEXT        1
 
 /* Handle 16 neighbors */
@@ -60,19 +57,25 @@
 #define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
 #define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
 #define RPL_CONF_WITH_MC 1
-#define RPL_CONF_DAG_MC RPL_DAG_MC_RSSI
+#define RPL_CONF_DAG_MC RPL_DAG_MC_MOVFAC
 
-/* Always larger than the link cost, merely acts as a hop count (RFC6719)*/
-#define RPL_CONF_MIN_HOPRANKINC          1280
-#define RPL_CONF_MAX_RANKINC             (16 * RPL_MIN_HOPRANKINC)
+/* If always larger than the link cost, merely acts as a hop count (RFC6719)*/
+#define RPL_CONF_MIN_HOPRANKINC          128
+//#define RPL_CONF_MAX_RANKINC             (16 * RPL_MIN_HOPRANKINC)
+
+#define RPL_CONF_PROBING_SEND_FUNC(instance, addr) dis_output((addr))
 
 //#define RPL_CONF_DIO_INTERVAL_MIN        12 //12
 //#define RPL_CONF_DIO_INTERVAL_DOUBLINGS  5 //8
-//#define RPL_CONF_PROBING_INTERVAL        (30 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
+#define RPL_CONF_PROBING_INTERVAL        (30 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
 #define RPL_CONF_MOP RPL_MOP_NON_STORING
+
+#define RPL_CONF_LINK_COST_HYSTERESIS            2048
+#define RPL_CONF_PATH_COST_HYSTERESIS            (3 * RPL_CONF_LINK_COST_HYSTERESIS) / 2
+#define RPL_CONF_ABS_RSSI_GUARD                  90
 
 /* Application settings */
 #define APP_WARM_UP_PERIOD_SEC 120

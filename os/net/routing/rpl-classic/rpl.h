@@ -59,6 +59,7 @@ typedef uint16_t rpl_ocp_t;
 #define RPL_DAG_MC_ETX                  7 /* Expected Transmission Count */
 #define RPL_DAG_MC_LC                   8 /* Link Color */
 #define RPL_DAG_MC_RSSI                 9 /* Received Signal Strength Indicator */
+#define RPL_DAG_MC_MOVFAC               10 /* Movement Factor */
 
 /* IANA Routing Metric/Constraint Common Header Flag field as defined
    in RFC6551. (bit indexes) */
@@ -95,6 +96,11 @@ struct rpl_metric_object_energy {
   uint8_t energy_est;
 };
 
+struct rpl_metric_object_movfac {
+  uint8_t hc;
+  uint16_t mf;
+};
+
 /* Logical representation of a DAG Metric Container. */
 struct rpl_metric_container {
   uint8_t type;
@@ -106,6 +112,7 @@ struct rpl_metric_container {
     struct rpl_metric_object_energy energy;
     uint16_t etx;
     uint16_t rssi;
+    struct rpl_metric_object_movfac movfac;
   } obj;
 };
 typedef struct rpl_metric_container rpl_metric_container_t;
@@ -285,7 +292,15 @@ int rpl_ext_header_hbh_update(uint8_t *, int);
 void rpl_insert_header(void);
 bool rpl_ext_header_remove(void);
 const struct link_stats *rpl_get_parent_link_stats(rpl_parent_t *p);
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+int rpl_parent_tx_fresh(rpl_parent_t *p);
+int rpl_parent_rx_fresh(rpl_parent_t *p);
+int rpl_pref_parent_rx_fresh(rpl_parent_t *p);
+int rpl_parent_probe_recent(rpl_parent_t *p);
+uint16_t rpl_get_parent_path_cost(rpl_parent_t *p);
+#else
 int rpl_parent_is_fresh(rpl_parent_t *p);
+#endif
 int rpl_parent_is_reachable(rpl_parent_t *p);
 uint16_t rpl_get_parent_link_metric(rpl_parent_t *p);
 rpl_rank_t rpl_rank_via_parent(rpl_parent_t *p);

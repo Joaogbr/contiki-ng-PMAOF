@@ -22,7 +22,7 @@
 /* Avg tx rate: 996.83 B/min, avg sleep interval: 7.76 s */
 // 70 B payload -> 126 B IPv6 packet
 #define BUFSIZE 70
-#define SEND_INTERVAL		  (uint16_t) (7.5 * CLOCK_SECOND)
+#define SEND_INTERVAL		  (uint16_t) (1 * CLOCK_SECOND)
 
 static char buf[BUFSIZE-12] = { [0 ... (BUFSIZE-13)] = '@' };
 static struct simple_udp_connection udp_conn;
@@ -55,20 +55,6 @@ udp_rx_callback(struct simple_udp_connection *c,
   LOG_INFO_("\n");
   rx_count++;
 }
-/*---------------------------------------------------------------------------*/
-#if !MAC_CONF_WITH_TSCH
-void
-mvmt_rpl_callback_parent_switch(rpl_parent_t *old, rpl_parent_t *new)
-{
-  if(new != NULL) {
-    LOG_INFO("rpl callback: new parent lladdr -> ");
-    LOG_INFO_LLADDR(rpl_get_parent_lladdr(new));
-    LOG_INFO_("\n");
-  } else if(!NETSTACK_ROUTING.node_is_reachable()) {
-    LOG_INFO("rpl callback: node has left the network\n");
-  }
-}
-#endif
 /*---------------------------------------------------------------------------*/
 #if NBR_TABLE_GC_GET_WORST==rpl_nbr_gc_get_worst_path
 const linkaddr_t *
@@ -132,7 +118,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
     /* Add some jitter */
     etimer_set(&periodic_timer, SEND_INTERVAL
-      - CLOCK_SECOND / 8 + (random_rand() % (CLOCK_SECOND / 4)));
+      - CLOCK_SECOND / 16 + (random_rand() % (CLOCK_SECOND / 8)));
   }
 
   PROCESS_END();

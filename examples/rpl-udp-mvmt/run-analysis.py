@@ -3,9 +3,9 @@
 import os
 import sys
 import argparse
-import time
 import numpy as np
 import matplotlib.pyplot as pl
+from scipy import stats
 
 ###########################################
 
@@ -49,7 +49,6 @@ class NodeStats:
         self.rpl_time_joined_msec = 0
         self.rpl_parent = None
         self.rpl_parent_lladdr = None
-        self.max_seqnum_sent = 0
         self.seqnums_received_on_root = [[],[]]
         self.seqnums_sent = [[],[]]
         self.e2e_delay = []
@@ -75,8 +74,8 @@ class NodeStats:
         self.rdc = None
         self.rdc_joined = None
         self.charge = None
-        self.avg_e2e_delay = 0
-        self.jitter = 0
+        self.avg_e2e_delay = np.nan
+        self.jitter = np.nan
 
     # calculate the final metrics
     def calc(self):
@@ -117,7 +116,7 @@ class NodeStats:
             return 0, 0, 0, 0, 0
 
 
-        if self.max_seqnum_sent == 0:
+        if not len(self.seqnums_sent[0]):
             output_stream.append("node {} never sent any data packets".format(self.id))
             return 0, 0, 0, 0, 0
 
@@ -128,7 +127,7 @@ class NodeStats:
         else:
             self.par = 0.0
 
-        expected = self.max_seqnum_sent
+        expected = len(self.seqnums_sent[0])
         actual = len(self.seqnums_received_on_root[0])
         if expected:
             self.pdr = 100.0 * actual / expected
@@ -137,19 +136,17 @@ class NodeStats:
 
         if len(self.e2e_delay):
             self.avg_e2e_delay = np.mean(self.e2e_delay)
-            self.jitter = self.e2e_delay[0]/16
-            i = 1
-            while i < len(self.e2e_delay):
-                self.jitter = self.jitter*(15/16) + abs(self.e2e_delay[i] - self.e2e_delay[i-1])/16
-                i += 1
-        else:
-            self.avg_e2e_delay = -1
-            self.jitter = -1
+            if len(self.e2e_delay) >= 2:
+                self.jitter = self.e2e_delay[1] - self.e2e_delay[0]
+                i = 2
+                while i < len(self.e2e_delay):
+                    self.jitter = self.jitter*(15/16) + abs(self.e2e_delay[i] - self.e2e_delay[i-1])/16
+                    i += 1
 
         return self.parent_packets_tx, \
             self.parent_packets_ack, \
             self.parent_packets_queue_dropped, \
-            self.max_seqnum_sent, \
+            len(self.seqnums_sent[0]), \
             len(self.seqnums_received_on_root[0])
 
 
@@ -252,10 +249,10 @@ def analyze_results(filename, is_testbed):
             if "received from" in line:
                 continue
 
-            # 2497128 2 [INFO: RPL       ] rpl_set_preferred_parent fe80::201:1:1:1 used to be NULL
+            # 4358536 15 [INFO: RPL       ] rpl_set_preferred_parent: used to be NULL, now is fe80::c30c:0:0:1
             if "rpl_set_preferred_parent" in line:
                 nodes[node].rpl_parent_changes += 1
-                nodes[node].rpl_parent = extract_ipaddr(fields[6])
+                nodes[node].rpl_parent = extract_ipaddr(fields[12])
                 if nodes[node].rpl_parent is not None:
                     output_stream.append("Node {} joined RPL DAG through parent".format(nodes[node].id) + " {}".format(nodes[node].rpl_parent) + " at {} seconds".format(ts / 1000))
                     if nodes[node].rpl_join_time_msec is None:
@@ -274,12 +271,12 @@ def analyze_results(filename, is_testbed):
                     nodes[node].has_joined = True
                 continue
 
-            # 123047424 1 [INFO: App       ] rpl callback: new parent lladdr -> 0001.0001.0001.0001
+            # 4363361 15 [INFO: RPL       ] new parent lladdr -> c10c.0000.0000.0001
             if "new parent lladdr" in line:
                 nodes[node].rpl_parent_lladdr = extract_macaddr(line.split(" -> ")[1])
                 continue
 
-            # 2497128 1 [INFO: App       ] rpl callback: node has left the network
+            # 4753976 19 [INFO: RPL       ] node has left the network
             if "node has left the network" in line:
                 output_stream.append("Node {} has left the network".format(nodes[node].id) + " at {} seconds".format(ts / 1000))
                 nodes[node].has_joined = False
@@ -294,7 +291,6 @@ def analyze_results(filename, is_testbed):
                 if is_testbed:
                     node_id = int(fields[9].split("=")[1])
                     node_id_to_device_id[node_id] = node
-                nodes[node].max_seqnum_sent = max(nodes[node].max_seqnum_sent, seqnum)
                 if seqnum in nodes[node].seqnums_sent[0]:
                     # Could be a duplicate!
                     output_stream.append("WARNING: Application message with seqnum = {}".format(seqnum) + " already sent. Might be duplicate")
@@ -416,7 +412,7 @@ def analyze_results(filename, is_testbed):
                 "id": n.id,
                 "pdr": n.pdr,
                 "par": n.par,
-                "packets_sent": n.max_seqnum_sent,
+                "packets_sent": len(n.seqnums_sent[0]),
                 "rpl_switches": n.rpl_parent_changes,
                 "duty_cycle": n.rdc,
                 "duty_cycle_joined": n.rdc_joined,
@@ -434,21 +430,15 @@ def analyze_results(filename, is_testbed):
             total_e2e_sent += e2e_sent
             total_e2e_received += e2e_received
             # Do not count if no messages got received at root
-            if n.avg_e2e_delay != -1:
-                total_e2e_delay += n.avg_e2e_delay
-                total_e2e_jitter += n.jitter
+            if len(n.seqnums_received_on_root[0]):
                 ji_numerator += n.avg_e2e_delay
                 ji_denominator += n.avg_e2e_delay**2
             else:
                 discnt += 1
     ll_par = 100.0 * total_ll_acked / total_ll_sent if total_ll_sent else 0.0
-    avg_rpl_p_switches = total_rpl_parent_switches / (k-1)
     avg_rpl_time_joined = total_rpl_time_joined / (k-1)
-    e2e_pdr = 100.0 * total_e2e_received / total_e2e_sent if total_e2e_sent else 0.0
-    avg_total_e2e_delay = (total_e2e_delay / (k-discnt-1)) if (k-discnt-1) else 0.0
-    avg_total_e2e_jitter = (total_e2e_jitter / (k-discnt-1)) if (k-discnt-1) else 0.0
     justice_index = (ji_numerator ** 2) / (ji_denominator * (k-1)) if (k-discnt-1) else 0.0
-    return r, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_p_switches, avg_rpl_time_joined, e2e_pdr, avg_total_e2e_delay, avg_total_e2e_jitter, justice_index
+    return r, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_time_joined, justice_index
 
 #######################################################
 # Plot the results of a given metric as a bar chart
@@ -470,14 +460,7 @@ def plot(results, metric, ylabel):
     pl.xlabel("Node ID")
     pl.ylabel(ylabel)
 
-    if metric == "pdr":
-        miny = min(80, min(data))
-        pl.ylim([miny, 100])
-    elif metric == "avg_e2e_delay" or metric == "jitter":
-        pl.ylim(ymin=-1)
-        pl.axhline(0, color='k', linewidth=0.8)
-    else:
-        pl.ylim(ymin=0)
+    pl.ylim(ymin=0)
 
     pl.savefig(os.path.join(SIM_PATH, "plot_{}.pdf".format(metric)), format="pdf", bbox_inches='tight')
     pl.close()
@@ -509,17 +492,22 @@ def main():
     with open(input_file, "r") as f:
         is_testbed = "Starting COOJA logger" not in f.read()
 
-    results, ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_ps, avg_rpl_tj, e2e_pdr, e2e_avgt_delay, e2e_avgt_jitter, jus_idx = analyze_results(
+    results, ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, jus_idx = analyze_results(
         input_file, is_testbed)
 
-    output_stream.append("Link-layer PAR = {:.2f} (total of {} packets dropped in queue) End-to-end PDR = {:.2f}".format(
-        ll_par, ll_queue_dropped, e2e_pdr))
+    e2e_pdr = [r["pdr"] for r in results]
+    rpl_ps = [r["rpl_switches"] for r in results]
+    avg_e2e_delay = [r["avg_e2e_delay"] for r in results]
+    avg_e2e_jitter = [r["jitter"] for r in results]
+
+    output_stream.append("Link-layer PAR = {:.2f} (total of {} packets dropped in queue) End-to-end PDR = [ mean= {:.2f} std= {:.2f} ]".format(
+        ll_par, ll_queue_dropped, np.mean(e2e_pdr), np.nanstd(e2e_pdr)))
     output_stream.append("Total packets sent = {} Total packets received = {}".format(
         e2e_sent, e2e_received))
-    output_stream.append("Avg. no. of parent switches = {:.2f} Avg. time joined = {:.2f} s".format(
-        avg_rpl_ps, avg_rpl_tj))
-    output_stream.append("Avg. end-to-end total delay = {:.2f} ms Avg. end-to-end total jitter = {:.2f} ms".format(
-        e2e_avgt_delay, e2e_avgt_jitter))
+    output_stream.append("No. of parent switches = [ mean= {:.2f} std= {:.2f} ] Avg. time joined = {:.2f} s".format(
+        np.mean(rpl_ps), np.nanstd(rpl_ps), avg_rpl_tj))
+    output_stream.append("End-to-end total delay = [ mean= {:.2f} std= {:.2f} ] ms End-to-end total jitter = [ mean= {:.2f} std= {:.2f} ] ms".format(
+        np.nanmean(avg_e2e_delay), np.nanstd(avg_e2e_delay), np.nanmean(avg_e2e_jitter), np.nanstd(avg_e2e_jitter)))
     output_stream.append("Jain's Justice Index = {:.3f}".format(jus_idx))
 
     print(*output_stream, sep = "\n", file = sys.stdout)

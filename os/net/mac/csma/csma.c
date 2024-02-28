@@ -91,7 +91,9 @@ input_packet(void)
             !packetbuf_holds_broadcast()) {
     LOG_WARN("not for us\n");
     /* Don't pass to upper layers, but still count it in link stats */
-    //link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
+    /*if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &linkaddr_pp_addr)){
+      link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
+    }*/
   } else if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &linkaddr_node_addr)) {
     LOG_WARN("frame from ourselves\n");
   } else {

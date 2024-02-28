@@ -87,20 +87,6 @@ udp_rx_callback(struct simple_udp_connection *c,
 #endif /* WITH_SERVER_REPLY */
 }
 /*---------------------------------------------------------------------------*/
-#if !MAC_CONF_WITH_TSCH
-void
-mvmt_rpl_callback_parent_switch(rpl_parent_t *old, rpl_parent_t *new)
-{
-  if(new != NULL) {
-    LOG_INFO("rpl callback: new parent lladdr -> ");
-    LOG_INFO_LLADDR(rpl_get_parent_lladdr(new));
-    LOG_INFO_("\n");
-  } else if(!NETSTACK_ROUTING.node_is_reachable()) {
-    LOG_INFO("rpl callback: node has left the network\n");
-  }
-}
-#endif
-/*---------------------------------------------------------------------------*/
 #if NBR_TABLE_GC_GET_WORST==rpl_nbr_gc_get_worst_path
 const linkaddr_t *
 rpl_nbr_gc_get_worst_path(const linkaddr_t *lladdr1, const linkaddr_t *lladdr2)

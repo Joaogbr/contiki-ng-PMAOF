@@ -403,6 +403,18 @@ dio_input(void)
                 (unsigned)dio.mc.prec,
                 (unsigned)dio.mc.length,
                 (unsigned)dio.mc.obj.rssi);
+      } else if(dio.mc.type == RPL_DAG_MC_MOVFAC) {
+        dio.mc.obj.movfac.hc = buffer[i + 6];
+        dio.mc.obj.movfac.mf = get16(buffer, i + 7);
+
+        LOG_DBG("DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, abs MF %u, hop count %u\n",
+                (unsigned)dio.mc.type,
+                (unsigned)dio.mc.flags,
+                (unsigned)dio.mc.aggr,
+                (unsigned)dio.mc.prec,
+                (unsigned)dio.mc.length,
+                (unsigned)dio.mc.obj.movfac.mf,
+                (unsigned)dio.mc.obj.movfac.hc);
       } else {
         LOG_WARN("Unhandled DAG MC type: %u\n", (unsigned)dio.mc.type);
         goto discard;
@@ -561,7 +573,7 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     instance->of->update_metric_container(instance);
 
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
-    buffer[pos++] = 6;
+    buffer[pos++] = 6 + (instance->mc.type == RPL_DAG_MC_MOVFAC);
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
@@ -577,6 +589,11 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     } else if(instance->mc.type == RPL_DAG_MC_RSSI) {
       buffer[pos++] = 2;
       set16(buffer, pos, instance->mc.obj.rssi);
+      pos += 2;
+    } else if(instance->mc.type == RPL_DAG_MC_MOVFAC) {
+      buffer[pos++] = 2;
+      buffer[pos++] = instance->mc.obj.movfac.hc;
+      set16(buffer, pos, instance->mc.obj.movfac.mf);
       pos += 2;
     } else {
       LOG_ERR("Unable to send DIO because of unhandled DAG MC type %u\n",

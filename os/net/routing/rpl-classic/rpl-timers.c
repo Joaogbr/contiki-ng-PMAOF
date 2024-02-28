@@ -423,16 +423,27 @@ get_probing_target(rpl_dag_t *dag)
   }
 
   /* The preferred parent needs probing. */
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  if(dag->preferred_parent != NULL
+     && !rpl_pref_parent_rx_fresh(dag->preferred_parent)) {
+    return dag->preferred_parent;
+  }
+#else
   if(dag->preferred_parent != NULL
      && !rpl_parent_is_fresh(dag->preferred_parent)) {
     return dag->preferred_parent;
   }
+#endif
 
   /* With 50% probability: probe best non-fresh parent. */
   if(random_rand() % 2 == 0) {
     p = nbr_table_head(rpl_parents);
     while(p != NULL) {
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+      if(p->dag == dag && !rpl_parent_rx_fresh(p) && !rpl_parent_probe_recent(p)) {
+#else
       if(p->dag == dag && !rpl_parent_is_fresh(p)) {
+#endif
         /* p is in our DAG and needs probing. */
         rpl_rank_t p_rank = rpl_rank_via_parent(p);
         if(probing_target == NULL || p_rank < probing_target_rank) {
@@ -451,11 +462,19 @@ get_probing_target(rpl_dag_t *dag)
     while(p != NULL) {
       const struct link_stats *stats = rpl_get_parent_link_stats(p);
       if(p->dag == dag && stats != NULL) {
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+        if(probing_target == NULL
+           || clock_now - MAX(stats->rx_time[0], stats->last_probe_time) > probing_target_age) {
+          probing_target = p;
+          probing_target_age = clock_now - MAX(stats->rx_time[0], stats->last_probe_time);
+        }
+#else
         if(probing_target == NULL
            || clock_now - stats->last_tx_time > probing_target_age) {
           probing_target = p;
           probing_target_age = clock_now - stats->last_tx_time;
         }
+#endif
       }
       p = nbr_table_next(rpl_parents, p);
     }
@@ -503,6 +522,7 @@ handle_probing_timer(void *ptr)
 
     /* Send probe, e.g., a unicast DIO or DIS. */
     RPL_PROBING_SEND_FUNC(instance, target_ipaddr);
+    link_stats_probe_callback(lladdr, clock_time());
   }
 
   /* Schedule next probing. */

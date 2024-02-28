@@ -214,7 +214,7 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
           /* Check for ack */
 
           /* Wait for max CSMA_ACK_WAIT_TIME */
-          RTIMER_BUSYWAIT_UNTIL(NETSTACK_RADIO.receiving_packet() || NETSTACK_RADIO.pending_packet(), CSMA_ACK_WAIT_TIME);
+          RTIMER_BUSYWAIT_UNTIL(NETSTACK_RADIO.pending_packet(), CSMA_ACK_WAIT_TIME);
 
           ret = MAC_TX_NOACK;
           if(NETSTACK_RADIO.receiving_packet() ||
@@ -224,7 +224,7 @@ send_one_packet(struct neighbor_queue *n, struct packet_queue *q)
             uint8_t ackbuf[CSMA_ACK_LEN];
 
             /* Wait an additional CSMA_AFTER_ACK_DETECTED_WAIT_TIME to complete reception */
-            RTIMER_BUSYWAIT_UNTIL(!NETSTACK_RADIO.receiving_packet() || NETSTACK_RADIO.pending_packet(), CSMA_AFTER_ACK_DETECTED_WAIT_TIME);
+            RTIMER_BUSYWAIT_UNTIL(NETSTACK_RADIO.pending_packet(), CSMA_AFTER_ACK_DETECTED_WAIT_TIME);
 
             if(NETSTACK_RADIO.pending_packet()) {
               len = NETSTACK_RADIO.read(ackbuf, CSMA_ACK_LEN);
