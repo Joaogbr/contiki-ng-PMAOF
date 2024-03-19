@@ -85,7 +85,7 @@ input_packet(void)
     /* Don't pass to upper layers, but still count it in link stats */
     //link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));
   } else if(csma_security_parse_frame() < 0) {
-    LOG_ERR("failed to parse %u\n", packetbuf_datalen());
+    LOG_DBG("failed to parse %u\n", packetbuf_datalen());
   } else if(!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
                                          &linkaddr_node_addr) &&
             !packetbuf_holds_broadcast()) {

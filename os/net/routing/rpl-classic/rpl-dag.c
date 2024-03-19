@@ -968,10 +968,10 @@ best_parent(rpl_dag_t *dag, int fresh_only)
     uint16_t pp_cost = rpl_get_parent_path_cost(dag->preferred_parent);
     const struct link_stats *pp_stats = rpl_get_parent_link_stats(dag->preferred_parent);
 
-    /* Maintain the stability of the preferred parent if performance is acceptable. */
+    // Maintain the stability of the preferred parent if performance is acceptable.
     if(pp_cost <= RPL_PATH_COST_HYSTERESIS * (dag->preferred_parent->mc.obj.movfac.hc + 1) &&
        fix_abs(pp_stats->last_link_metric) <= fix16_from_int(RPL_LINK_COST_HYSTERESIS) &&
-       fix_abs(pp_stats->rssi[0]) <= fix16_from_int(RPL_ABS_RSSI_GUARD)) {
+       fix_abs(pp_stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD)) {
       return dag->preferred_parent;
     }
   }

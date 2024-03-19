@@ -258,6 +258,8 @@ def analyze_results(filename, is_testbed):
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
+                else:
+                    output_stream.append("Node {} switched to NULL parent".format(nodes[node].id) + " at {} seconds".format(ts / 1000))
                 continue
 
             # 377018480 76 [INFO: RPL       ] parent switch: (NULL IP addr) -> fe80::244:44:44:44
@@ -269,6 +271,8 @@ def analyze_results(filename, is_testbed):
                     if nodes[node].rpl_join_time_msec is None:
                         nodes[node].rpl_join_time_msec = ts
                     nodes[node].has_joined = True
+                else:
+                    output_stream.append("Node {} switched to NULL parent".format(nodes[node].id) + " at {} seconds".format(ts / 1000))
                 continue
 
             # 4363361 15 [INFO: RPL       ] new parent lladdr -> c10c.0000.0000.0001
