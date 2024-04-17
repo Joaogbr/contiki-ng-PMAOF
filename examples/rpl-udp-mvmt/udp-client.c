@@ -118,7 +118,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
     /* Add some jitter */
     etimer_set(&periodic_timer, SEND_INTERVAL
-      - CLOCK_SECOND / 16 + (random_rand() % (CLOCK_SECOND / 8)));
+      - SEND_INTERVAL / 16 + (random_rand() % (SEND_INTERVAL / 8)));
   }
 
   PROCESS_END();

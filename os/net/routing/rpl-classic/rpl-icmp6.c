@@ -591,7 +591,7 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
       set16(buffer, pos, instance->mc.obj.rssi);
       pos += 2;
     } else if(instance->mc.type == RPL_DAG_MC_MOVFAC) {
-      buffer[pos++] = 2;
+      buffer[pos++] = 3;
       buffer[pos++] = instance->mc.obj.movfac.hc;
       set16(buffer, pos, instance->mc.obj.movfac.mf);
       pos += 2;

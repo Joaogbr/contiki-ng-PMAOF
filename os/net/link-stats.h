@@ -37,7 +37,7 @@
 #include "net/linkaddr.h"
 
 /* Statistics with no update in FRESHNESS_EXPIRATION_TIMEOUT is not fresh */
-#define FRESHNESS_EXPIRATION_TIME       (8 * 60 * (clock_time_t)CLOCK_SECOND)
+#define FRESHNESS_EXPIRATION_TIME       (8 * 60 * (clock_time_t)CLOCK_SECOND) //(10 * 60 * (clock_time_t)CLOCK_SECOND)
 /* Half time for the freshness counter */
 #define FRESHNESS_HALF_LIFE             (15 * 60 * (clock_time_t)CLOCK_SECOND)
 /* Statistics are fresh if the freshness counter is FRESHNESS_TARGET or more */
@@ -101,15 +101,36 @@
 #define LINK_STATS_RSSI_ARR_LEN                3
 #endif /* LINK_STATS_RSSI_ARR_LEN */
 
-/* Determines how many RSSI values are recorded */
+/* Determines how many RSSI values are sufficient */
+#ifdef LINK_STATS_CONF_MIN_RSSI_COUNT
+#define LINK_STATS_MIN_RSSI_COUNT LINK_STATS_CONF_MIN_RSSI_COUNT
+#else /* LINK_STATS_CONF_MIN_RSSI_COUNT */
+#define LINK_STATS_MIN_RSSI_COUNT                2
+#endif /* LINK_STATS_MIN_RSSI_COUNT */
+
+/* Determines how RSSI values are recorded */
 #ifdef LINK_STATS_CONF_RSSI_WITH_EMANEXT
 #define LINK_STATS_RSSI_WITH_EMANEXT LINK_STATS_CONF_RSSI_WITH_EMANEXT
 #else /* LINK_STATS_CONF_RSSI_WITH_EMANEXT */
 #define LINK_STATS_RSSI_WITH_EMANEXT                0
 #endif /* LINK_STATS_RSSI_WITH_EMANEXT */
 
+/* Determines how RSSI values are recorded */
+#ifdef LINK_STATS_CONF_ETX_WITH_EMANEXT
+#define LINK_STATS_ETX_WITH_EMANEXT LINK_STATS_CONF_ETX_WITH_EMANEXT
+#else /* LINK_STATS_CONF_ETX_WITH_EMANEXT */
+#define LINK_STATS_ETX_WITH_EMANEXT                0
+#endif /* LINK_STATS_ETX_WITH_EMANEXT */
+
 /* Special value that signal the RSSI is not initialized */
 #define LINK_STATS_RSSI_UNKNOWN 0x7fff
+
+/* Determines how many failed probes are tolerated */
+#ifdef LINK_STATS_CONF_FAILED_PROBES_MAX_NUM
+#define LINK_STATS_FAILED_PROBES_MAX_NUM LINK_STATS_CONF_FAILED_PROBES_MAX_NUM
+#else /* LINK_STATS_CONF_FAILED_PROBES_MAX_NUM */
+#define LINK_STATS_FAILED_PROBES_MAX_NUM                2
+#endif /* LINK_STATS_FAILED_PROBES_MAX_NUM */
 
 typedef uint16_t link_packet_stat_t;
 
@@ -135,6 +156,7 @@ struct link_stats {
   fix16_t last_rssi; /* Latest RSSI (received signal strength) value. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   fix16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   uint8_t freshness;          /* Freshness of the statistics. Zero if no packets sent yet. */
+  uint8_t failed_probes;          /* Number of lost probes. */
   uint8_t link_stats_metric_updated; /* Set when values are updated */
   fix16_t last_link_metric; /* OF calculated link metric */
   //fix16_t last_cf; /* Correction Factor */
@@ -153,8 +175,6 @@ struct link_stats {
 const struct link_stats *link_stats_from_lladdr(const linkaddr_t *lladdr);
 /* Returns the address of the neighbor */
 const linkaddr_t *link_stats_get_lladdr(const struct link_stats *);
-/* Converts the time in ticks to seconds using fixed-point arithmetic */
-fix16_t get_seconds_from_ticks(clock_time_t time_ticks, uint16_t ticks_per_second);
 /* Are the transmissions fresh? */
 int link_stats_tx_fresh(const struct link_stats *stats, clock_time_t exp_time);
 /* Are the receptions fresh? */
@@ -165,7 +185,7 @@ int link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time);
 int link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time);
 /* Returns number of RSSI measurements */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-int link_stats_get_rssi_count(const struct link_stats *stats);
+uint8_t link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only);
 #endif
 /* Resets link-stats module */
 void link_stats_reset(void);

@@ -1125,7 +1125,7 @@ uncompress_hdr_iphc(uint8_t *buf, uint16_t buf_size, uint16_t ip_len)
         SICSLOWPAN_IP_BUF(buf)->vtc = 0x60;
         /* highest flow label bits + ECN bits */
         CHECK_READ_SPACE(3);
-        SICSLOWPAN_IP_BUF(buf)->tcflow = (*iphc_ptr & 0x0F) | 
+        SICSLOWPAN_IP_BUF(buf)->tcflow = (*iphc_ptr & 0x0F) |
           ((*iphc_ptr >> 2) & 0x30);
         memcpy(&SICSLOWPAN_IP_BUF(buf)->flow, iphc_ptr + 1, 2);
         iphc_ptr += 3;

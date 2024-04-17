@@ -42,9 +42,10 @@
 
 /* Enable printing of packet counters */
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
+#define LINK_STATS_CONF_ETX_DIVISOR              128
 //#define LINK_STATS_CONF_RSSI_ARR_LEN             10
-#define LINK_STATS_CONF_ETX_WITH_EMANEXT         0
 #define LINK_STATS_CONF_RSSI_WITH_EMANEXT        1
+#define LINK_STATS_CONF_MIN_RSSI_COUNT           3
 
 /* Handle 16 neighbors */
 #define NBR_TABLE_CONF_MAX_NEIGHBORS    24
@@ -54,6 +55,7 @@
 #define NETSTACK_MAX_ROUTE_ENTRIES      24
 
 /* RPL config */
+#define RPL_CONF_MOP RPL_MOP_NON_STORING
 #define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
 #define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
 #define RPL_CONF_WITH_MC 1
@@ -67,11 +69,9 @@
 
 //#define RPL_CONF_DIO_INTERVAL_MIN        12 //12
 //#define RPL_CONF_DIO_INTERVAL_DOUBLINGS  5 //8
-#define RPL_CONF_PROBING_INTERVAL        (30 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
+#define RPL_CONF_PROBING_INTERVAL        (60 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
-
-#define RPL_CONF_MOP RPL_MOP_NON_STORING
 
 #define RPL_CONF_LINK_COST_HYSTERESIS            2048
 #define RPL_CONF_PATH_COST_HYSTERESIS            (3 * RPL_CONF_LINK_COST_HYSTERESIS) / 2
@@ -81,5 +81,7 @@
 #define APP_WARM_UP_PERIOD_SEC 120
 
 #define SICSLOWPAN_CONF_FRAG 0 /* 1 if using cam, 0 otherwise */
-#define UIP_CONF_BUFFER_SIZE 200 /* 300 if using cam, 200 otherwise */
+//#define UIP_CONF_BUFFER_SIZE 200 /* 300 if using cam, 200 otherwise */
 //#define QUEUEBUF_CONF_NUM 8
+
+//#define COOJA_RADIO_CONF_BUFSIZE 200

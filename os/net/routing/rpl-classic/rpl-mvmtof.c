@@ -66,6 +66,7 @@
 #define CF_BETA            TX_RANGE / (4 * DRSSI_SCALE)
 #define RSSI_NOISE_THRESHOLD    0.0f
 #define MAX_ABS_RSSI       100 /* dBm */
+#define MOVFAC_WITH_ACCEL  1
 
 #ifndef RPL_CONF_LINK_COST_HYSTERESIS
 #define RPL_LINK_COST_HYSTERESIS                    2048
@@ -84,6 +85,8 @@
 #else
 #define RPL_ABS_RSSI_GUARD                    RPL_CONF_ABS_RSSI_GUARD
 #endif /* !RPL_CONF_ABS_RSSI_GUARD */
+
+#define LINK_COST_LOW_RSSI_COUNT              -RPL_LINK_COST_HYSTERESIS
 
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
 #define MAX_LINK_METRIC     1024 /* dBm */
@@ -199,64 +202,43 @@ parent_link_metric(rpl_parent_t *p)
       return (uint16_t)MIN(arssi, 0xffff);
     }
 #elif RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(stats->rssi[0] != fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
+    uint8_t rssi_cnt = link_stats_get_rssi_count(stats, 0);
+    if(rssi_cnt > 0) {
       if(stats->link_stats_metric_updated) {
         fix16_t drssi[LINK_STATS_RSSI_ARR_LEN-1] = {0};
         fix16_t drssi_dt[LINK_STATS_RSSI_ARR_LEN-1] = {0};
-        fix16_t d2rssi_dt[LINK_STATS_RSSI_ARR_LEN-2] = {0};
-        fix16_t d2rssi_dt2[LINK_STATS_RSSI_ARR_LEN-2] = {0};
-        fix16_t cf;
-        uint8_t rssi_cnt = link_stats_get_rssi_count(stats);
-        fix16_t diff_s_fix16;
-        fix16_t result = fix16_from_int(DRSSI_SCALE); /* Punish a bit if only one RSSI reading is available */
+        fix16_t diff_s_fix16, cf, result;
 
-        if(rssi_cnt >= 2) {
+        if(rssi_cnt < 2) {
+          /* Punish a bit if only one RSSI reading is available */
+          result = fix16_from_int(LINK_COST_LOW_RSSI_COUNT);
+        } else {
           for(int i = 0; i < rssi_cnt - 1; i++) {
             drssi[i] = fix16_mul(fix16_sub(stats->rssi[i], stats->rssi[i+1]), fix16_from_int(DRSSI_SCALE));
+            diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
+            drssi_dt[i] = fix16_div(drssi[i], diff_s_fix16);
           }
-          if(fix_abs(drssi[0]) > fix16_from_float(RSSI_NOISE_THRESHOLD)) {
-            for(int i = 0; i < rssi_cnt - 1; i++) {
+          cf = fix16_mul(drssi_dt[0], fix16_from_float(CF_ALPHA));
+#if MOVFAC_WITH_ACCEL
+          if(rssi_cnt > 2) {
+            fix16_t d2rssi_dt[LINK_STATS_RSSI_ARR_LEN-2] = {0};
+            fix16_t d2rssi_dt2[LINK_STATS_RSSI_ARR_LEN-2] = {0};
+            for(int i = 0; i < rssi_cnt - 2; i++) {
+              d2rssi_dt[i] = fix16_sub(drssi_dt[i], drssi_dt[i+1]);
               diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
-              drssi_dt[i] = fix16_div(drssi[i], diff_s_fix16);
+              d2rssi_dt2[i] = fix16_div(d2rssi_dt[i], diff_s_fix16);
             }
-            cf = fix16_mul(drssi_dt[0], fix16_from_float(CF_ALPHA));
 
-            if(rssi_cnt >= 3) {
-              for(int i = 0; i < rssi_cnt - 2; i++) {
-                d2rssi_dt[i] = fix16_sub(drssi_dt[i], drssi_dt[i+1]);
-              }
-              if((fix_abs(drssi[1]) > fix16_from_float(RSSI_NOISE_THRESHOLD))) {
-                for(int i = 0; i < rssi_cnt - 2; i++) {
-                  diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
-                  d2rssi_dt2[i] = fix16_div(d2rssi_dt[i], diff_s_fix16);
-                }
-
-                if((d2rssi_dt2[0] >= 0) == (drssi_dt[0] >= 0)) {
-                  cf = fix16_add(cf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
-                }
-                /*cf = fix16_mul(fix16_add(fix16_one, fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA))),
-                    fix16_add(fix16_one, fix16_sq(fix16_mul(diff2_norm[0], fix16_from_float(CF_BETA)))));*/
-                /*cf = fix16_add(fix16_one, fix16_mul(fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA)),
-                    fix16_add(fix16_one, fix16_sq(fix16_mul(diff2_norm[0], fix16_from_float(CF_BETA))))));*/
-                /*cf = fix16_add(fix16_add(fix16_one, fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA))),
-                    fix16_sq(fix16_mul(diff2_norm[0], fix16_from_float(CF_BETA))));*/
-                /*cf = fix16_add(fix16_one, fix16_mul(fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA)),
-                    fix16_exp(fix16_mul(fix_abs(diff2_norm[0]), fix16_from_float(CF_BETA)))));*/
-                /*cf = fix16_mul(fix16_add(fix16_one, fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA))),
-                    fix16_exp(fix16_mul(fix_abs(diff2_norm[0]), fix16_from_float(CF_BETA))));*/
-                /*cf = fix16_add(fix16_add(fix16_one, fix16_mul(fix_abs(diff1_norm[0]), fix16_from_float(CF_ALPHA))),
-                    fix16_exp(fix16_mul(diff2_norm[0], fix16_from_float(CF_BETA))));*/
-              }
+            if((d2rssi_dt2[0] >= 0) == (drssi_dt[0] >= 0)) {
+              cf = fix16_add(cf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
+            } else if(fix_abs(d2rssi_dt2[0]) >= fix_abs(drssi_dt[0])) {
+              cf = -fix16_sub(cf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
             }
-            result = cf;
-          } /*else if((fabs(diff1_rssi[1]) > RSSI_NOISE_THRESHOLD) && (diff2_norm[0]/diff1_norm[0] > 0)) {
-            cf = expf(diff2_norm[0]*CF_BETA);
-          }*/
+          }
+#endif
+          result = cf;
         }
-        /*LOG_DBG("From: ");
-        LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-        LOG_DBG_(" -> Current RSSI: %d, Correction Factor: %d%%, Corrected RSSI: %d\n", fix16_to_int(stats->rssi[0]),
-            fix16_to_int(fix16_mul(fix16_from_int(100), cf)), fix16_to_int(fix16_mul(stats->rssi[0], cf)));*/
+
         link_stats_metric_update_callback(rpl_get_parent_lladdr(p), result);
         return (uint16_t) MIN(fix16_to_int(fix_abs(result)), 0xffff);
       }
@@ -265,6 +247,20 @@ parent_link_metric(rpl_parent_t *p)
 #endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
   }
   return 0xffff;
+}
+/*---------------------------------------------------------------------------*/
+static uint8_t
+parent_hop_count(rpl_parent_t *p)
+{
+  uint8_t base;
+
+  if(p == NULL || p->dag == NULL || p->dag->instance == NULL) {
+    return 0x00;
+  }
+
+  base = p->mc.obj.movfac.hc;
+
+  return base < 0xff ? base + 1 : base;
 }
 /*---------------------------------------------------------------------------*/
 static uint16_t
@@ -324,10 +320,9 @@ rank_via_parent(rpl_parent_t *p)
 static int
 parent_is_acceptable(rpl_parent_t *p)
 {
-  uint16_t path_cost = parent_path_cost(p);
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   /* Exclude links with too high link metrics or path cost. (RFC6719, 3.2.2) */
-  return path_cost <= RPL_PATH_COST_HYSTERESIS * (p->mc.obj.movfac.hc + 1) &&
+  return parent_path_cost(p) <= RPL_PATH_COST_HYSTERESIS * parent_hop_count(p) &&
      fix_abs(stats->last_link_metric) <= fix16_from_int(RPL_LINK_COST_HYSTERESIS) &&
      fix_abs(stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD);
 }
@@ -336,23 +331,21 @@ parent_is_acceptable(rpl_parent_t *p)
 static int
 parent_has_usable_link(rpl_parent_t *p)
 {
-  uint16_t link_metric = parent_link_metric(p);
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   /* Exclude links with too high link metrics  */
-  return link_metric <= MAX_LINK_METRIC && fix_abs(stats->last_rssi) <= fix16_from_int(MAX_ABS_RSSI);
+  return parent_link_metric(p) <= MAX_LINK_METRIC && fix_abs(stats->last_rssi) <= fix16_from_int(MAX_ABS_RSSI);
 #else
   /* Exclude links with too high link metrics  */
-  return link_metric <= MAX_LINK_METRIC;
+  return parent_link_metric(p) <= MAX_LINK_METRIC;
 #endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
 }
 /*---------------------------------------------------------------------------*/
 static int
 parent_is_usable(rpl_parent_t *p)
 {
-  uint16_t path_cost = parent_path_cost(p);
   /* Exclude links with too high link metrics or path cost. (RFC6719, 3.2.2) */
-  return parent_has_usable_link(p) && path_cost <= MAX_PATH_COST;
+  return parent_has_usable_link(p) && parent_path_cost(p) <= MAX_PATH_COST;
 }
 /*---------------------------------------------------------------------------*/
 static rpl_parent_t *
@@ -454,7 +447,7 @@ update_metric_container(rpl_instance_t *instance)
 {
   rpl_dag_t *dag;
   uint16_t path_cost;
-  uint8_t type, hop_count;
+  uint8_t type, is_root;
 
   dag = instance->current_dag;
   if(dag == NULL || !dag->joined) {
@@ -462,7 +455,9 @@ update_metric_container(rpl_instance_t *instance)
     return;
   }
 
-  if(dag->rank == ROOT_RANK(instance)) {
+  is_root = (dag->rank == ROOT_RANK(instance));
+
+  if(is_root) {
     /* Configure the metric container at the root only; other nodes
        are auto-configured when joining. */
     instance->mc.type = RPL_DAG_MC;
@@ -470,10 +465,8 @@ update_metric_container(rpl_instance_t *instance)
     instance->mc.aggr = RPL_DAG_MC_AGGR_ADDITIVE;
     instance->mc.prec = 0;
     path_cost = dag->rank;
-    hop_count = 0;
   } else {
     path_cost = parent_path_cost(dag->preferred_parent);
-    hop_count = dag->preferred_parent->mc.obj.movfac.hc + 1;
   }
 
   /* Handle the different MC types. */
@@ -486,7 +479,7 @@ update_metric_container(rpl_instance_t *instance)
     break;
   case RPL_DAG_MC_ENERGY:
     instance->mc.length = sizeof(instance->mc.obj.energy);
-    if(dag->rank == ROOT_RANK(instance)) {
+    if(is_root) {
       type = RPL_DAG_MC_ENERGY_TYPE_MAINS;
     } else {
       type = RPL_DAG_MC_ENERGY_TYPE_BATTERY;
@@ -501,8 +494,12 @@ update_metric_container(rpl_instance_t *instance)
     instance->mc.obj.rssi = path_cost;
     break;
   case RPL_DAG_MC_MOVFAC:
-    instance->mc.length = sizeof(instance->mc.obj.movfac);
-    instance->mc.obj.movfac.hc = hop_count;
+    instance->mc.length = 3;
+    if(is_root) {
+      instance->mc.obj.movfac.hc = 0;
+    } else {
+      instance->mc.obj.movfac.hc = parent_hop_count(dag->preferred_parent);
+    }
     instance->mc.obj.movfac.mf = path_cost;
     break;
   default:
@@ -518,6 +515,9 @@ rpl_of_t rpl_mvmtof = {
   dao_ack_callback,
 #endif
   parent_link_metric,
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  parent_is_acceptable,
+#endif
   parent_has_usable_link,
   parent_path_cost,
   rank_via_parent,

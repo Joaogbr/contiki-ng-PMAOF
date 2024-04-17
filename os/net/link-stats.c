@@ -62,8 +62,8 @@
 
 #define RSSI_DIFF (LINK_STATS_RSSI_HIGH - LINK_STATS_RSSI_LOW)
 
-#define STATIC_DET_TIME_THRESH           (7 * CLOCK_SECOND)
-#define STATIC_DET_RSSI_THRESH           fix16_one
+#define STATIC_DET_TIME_THRESH           (7 * (clock_time_t)CLOCK_SECOND)
+#define STATIC_DET_RSSI_THRESH           0.5f
 
 /* Generate error on incorrect link stats configuration values */
 #if RSSI_DIFF <= 0
@@ -111,7 +111,7 @@ int
 link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time)
 {
   return (stats != NULL)
-      && clock_time() - stats->rx_time[0] < exp_time;
+      && clock_time() - stats->last_rx_time < exp_time;
 }
 #endif
 /*---------------------------------------------------------------------------*/
@@ -125,14 +125,23 @@ link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time)
 /*---------------------------------------------------------------------------*/
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
 /* Are the receptions fresh? */
-int
-link_stats_get_rssi_count(const struct link_stats *stats)
+uint8_t
+link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only)
 {
-  uint8_t count = LINK_STATS_RSSI_ARR_LEN;
-  while((count > 0) && (stats->rssi[count-1] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN))) {
-    count--;
+  if(stats != NULL) {
+    uint8_t count = LINK_STATS_RSSI_ARR_LEN;
+    while((count > 0) && (stats->rssi[count-1] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN))) {
+      count--;
+    }
+    if(fresh_only) {
+      clock_time_t clock_now = clock_time();
+      while((count > 0) && ((clock_now - stats->rx_time[count-1]) >= FRESHNESS_EXPIRATION_TIME)) {
+        count--;
+      }
+    }
+    return count;
   }
-  return count;
+  return 0;
 }
 #endif
 /*---------------------------------------------------------------------------*/
@@ -192,10 +201,11 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
     }
     for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
       stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
+      stats->rx_time[i] = 0;
     }
     stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-    //stats->last_cf = fix16_maximum;
-    //stats->last_link_metric = fix16_maximum;
+    stats->last_rx_time = 0;
+    stats->last_probe_time = 0;
   }
 
   if(status == MAC_TX_QUEUE_FULL) {
@@ -253,13 +263,13 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
     /* Initialize ETX */
     stats->etx = packet_etx;
   } else {
-#if LINK_STATS_CONF_ETX_WITH_EMANEXT
+//#if LINK_STATS_ETX_WITH_EMANEXT
     /* Compute EMAnext and update ETX */
-#else
+//#else
     /* Compute EWMA and update ETX */
     stats->etx = ((uint32_t)stats->etx * (EWMA_SCALE - ewma_alpha) +
         (uint32_t)packet_etx * ewma_alpha) / EWMA_SCALE;
-#endif
+//#endif
   }
 #endif /* LINK_STATS_ETX_FROM_PACKET_COUNT */
 }
@@ -280,19 +290,23 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     }
     for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
       stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
+      stats->rx_time[i] = 0;
     }
     stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-    //stats->last_cf = fix16_maximum;
-    //stats->last_link_metric = fix16_maximum;
+    stats->last_rx_time = 0;
+    stats->last_probe_time = 0;
   }
 
   if(stats->last_rssi == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
     /* Update last Rx timestamp */
     stats->last_rx_time = clock_time();
     stats->rx_time[0] = stats->last_rx_time;
+
     /* Initialize RSSI */
     stats->last_rssi = fix16_from_int(packet_rssi);
     stats->rssi[0] = stats->last_rssi;
+
+    stats->link_stats_metric_updated = 1;
   } else {
     clock_time_t clock_now = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
@@ -306,30 +320,34 @@ link_stats_input_callback(const linkaddr_t *lladdr)
                        fix16_from_int(packet_rssi * EWMA_ALPHA)), fix16_from_int(EWMA_SCALE)); // If alpha == 100: no memory
 #endif
     stats->last_rx_time = clock_now;
-  }
 
-  /*if(stats->rssi[1] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN) ||
-     stats->last_rx_time - stats->rssi[0] >= STATIC_DET_TIME_THRESH ||
-     fix_abs(fix16_sub(stats->last_rssi, stats->rssi[0])) >= STATIC_DET_RSSI_THRESH) {*/
-    /* Update RSSI and Rx timestamp arrays */
-    for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
-      stats->rx_time[i] = stats->rx_time[i-1];
-      stats->rssi[i] = stats->rssi[i-1];
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+    if(stats->rssi[0] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN) ||
+       stats->last_rx_time - stats->rx_time[0] >= STATIC_DET_TIME_THRESH ||
+       fix_abs(fix16_sub(stats->last_rssi, stats->rssi[0])) >= fix16_from_float(STATIC_DET_RSSI_THRESH)) {
+      /* Update RSSI and Rx timestamp arrays */
+      for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
+        stats->rx_time[i] = stats->rx_time[i-1];
+        stats->rssi[i] = stats->rssi[i-1];
+        LOG_DBG("From: ");
+        LOG_DBG_LLADDR(lladdr);
+        LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, fix16_to_int(stats->rssi[i]), i, stats->rx_time[i]);
+      }
+      /* Update last Rx timestamp */
+      stats->rx_time[0] = stats->last_rx_time;
+      /* Update RSSI EMAnext */
+      stats->rssi[0] = stats->last_rssi;
+
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
-      LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, fix16_to_int(stats->rssi[i]), i, stats->rx_time[i]);
+      LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->rssi[0]), stats->rx_time[0]);
+
+      stats->link_stats_metric_updated = 1;
     }
-    /* Update last Rx timestamp */
-    stats->rx_time[0] = stats->last_rx_time;
-    /* Update RSSI EMAnext */
-    stats->rssi[0] = stats->last_rssi;
+#endif
+  }
 
-    stats->link_stats_metric_updated = 1;
-  //}
-
-  LOG_DBG("From: ");
-  LOG_DBG_LLADDR(lladdr);
-  LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->rssi[0]), stats->rx_time[0]);
+  stats->failed_probes = 0;
 
   if(stats->etx == 0) {
     /* Initialize ETX */
@@ -430,5 +448,6 @@ link_stats_probe_callback(const linkaddr_t *lladdr, clock_time_t probe_time)
   stats = nbr_table_get_from_lladdr(link_stats, lladdr);
   if(stats != NULL) {
     stats->last_probe_time = probe_time;
+    stats->failed_probes++;
   }
 }

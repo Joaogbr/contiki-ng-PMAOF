@@ -409,6 +409,9 @@ get_probing_target(rpl_dag_t *dag)
    * (3) selecting the least recently updated parent.
    */
 
+  const struct link_stats *stats;
+  uint8_t already_probed;
+
   if(dag == NULL || dag->instance == NULL) {
     return NULL;
   }
@@ -419,57 +422,59 @@ get_probing_target(rpl_dag_t *dag)
   }
 
   /* The preferred parent needs probing. */
-  if(dag->preferred_parent != NULL
-     && !rpl_pref_parent_rx_fresh(dag->preferred_parent)) {
-    return dag->preferred_parent;
+  if(dag->preferred_parent != NULL) {
+    stats = rpl_get_parent_link_stats(dag->preferred_parent);
+    already_probed = (stats->last_probe_time > stats->last_rx_time) &&
+                     rpl_parent_probe_recent(dag->preferred_parent);
+    if(!rpl_pref_parent_rx_fresh(dag->preferred_parent) || (!already_probed &&
+       link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
+      return dag->preferred_parent;
+    }
   }
 
   rpl_parent_t *p;
   rpl_parent_t *probing_target_1 = NULL;
-  uint8_t probing_target_1_rssi_cnt = 255;
+  uint8_t probing_target_1_rssi_cnt = 0xff;
+  uint8_t probing_target_1_rssi_cnt_fresh = 0xff;
   clock_time_t probing_target_1_age = 0;
   rpl_parent_t *probing_target_2 = NULL;
   rpl_rank_t probing_target_2_rank = RPL_INFINITE_RANK;
-  rpl_parent_t *probing_target_3 = NULL;
-  clock_time_t probing_target_3_age = 0;
   clock_time_t clock_now = clock_time();
 
   p = nbr_table_head(rpl_parents);
   while(p != NULL) {
     if(p->dag == dag) {
-      const struct link_stats *stats = rpl_get_parent_link_stats(p);
-      uint8_t p_rssi_cnt = link_stats_get_rssi_count(stats);
-      uint8_t already_probed = (stats->last_probe_time > stats->rx_time[0]) && rpl_parent_probe_recent(p);
-      clock_time_t p_age = clock_now - MAX(stats->rx_time[0], stats->last_probe_time);
-      if(!already_probed && (probing_target_1 == NULL || p_rssi_cnt < probing_target_1_rssi_cnt ||
-         (p_rssi_cnt == probing_target_1_rssi_cnt && p_age > probing_target_1_age))) {
+      stats = rpl_get_parent_link_stats(p);
+      uint8_t p_rssi_cnt = link_stats_get_rssi_count(stats, 0);
+      uint8_t p_rssi_cnt_fresh = link_stats_get_rssi_count(stats, 1);
+      already_probed = (stats->last_probe_time > stats->last_rx_time) && rpl_parent_probe_recent(p);
+      clock_time_t p_age = clock_now - MAX(stats->last_rx_time, stats->last_probe_time);
+      if(!already_probed && (p_rssi_cnt < probing_target_1_rssi_cnt ||
+         (p_rssi_cnt == probing_target_1_rssi_cnt && (p_rssi_cnt_fresh < probing_target_1_rssi_cnt_fresh ||
+         (p_rssi_cnt_fresh == probing_target_1_rssi_cnt_fresh && p_age > probing_target_1_age))))) {
         probing_target_1 = p;
         probing_target_1_rssi_cnt = p_rssi_cnt;
+        probing_target_1_rssi_cnt_fresh = p_rssi_cnt_fresh;
         probing_target_1_age = p_age;
       }
 
       rpl_rank_t p_rank = rpl_rank_via_parent(p);
-      if(probing_target_2 == NULL || p_rank < probing_target_2_rank) {
+      if(!already_probed && p_rssi_cnt_fresh < LINK_STATS_MIN_RSSI_COUNT &&
+         p_rank < probing_target_2_rank) {
         probing_target_2 = p;
         probing_target_2_rank = p_rank;
       }
 
-      if(probing_target_3 == NULL || p_age > probing_target_3_age) {
-        probing_target_3 = p;
-        probing_target_3_age = p_age;
-      }
       p = nbr_table_next(rpl_parents, p);
     }
   }
 
   /* If there are targets with p_rssi_cnt < 2, always probe the oldest one. */
-  if(probing_target_1_rssi_cnt < 2) {
+  if(probing_target_1_rssi_cnt < LINK_STATS_MIN_RSSI_COUNT) {
     return probing_target_1;
   }
 
-  uint8_t random = random_rand() % 2;
-
-  return random == 1 ? probing_target_2 : probing_target_3;
+  return (probing_target_2 != NULL && random_rand() % 2 == 0) ? probing_target_2 : probing_target_1;
 }
 /*---------------------------------------------------------------------------*/
 #else
@@ -530,11 +535,19 @@ get_probing_target(rpl_dag_t *dag)
     while(p != NULL) {
       const struct link_stats *stats = rpl_get_parent_link_stats(p);
       if(p->dag == dag && stats != NULL) {
+#if RPL_DAG_MC == RPL_DAG_MC_RSSI
+        if(probing_target == NULL
+           || clock_now - stats->last_rx_time > probing_target_age) {
+          probing_target = p;
+          probing_target_age = clock_now - stats->last_rx_time;
+        }
+#else
         if(probing_target == NULL
            || clock_now - stats->last_tx_time > probing_target_age) {
           probing_target = p;
           probing_target_age = clock_now - stats->last_tx_time;
         }
+#endif
       }
       p = nbr_table_next(rpl_parents, p);
     }
@@ -569,17 +582,26 @@ handle_probing_timer(void *ptr)
   rpl_instance_t *instance = (rpl_instance_t *)ptr;
   rpl_parent_t *probing_target = RPL_PROBING_SELECT_FUNC(get_next_dag(instance));
   uip_ipaddr_t *target_ipaddr = rpl_parent_get_ipaddr(probing_target);
+  const struct link_stats *stats = rpl_get_parent_link_stats(probing_target);
 
   /* Perform probing. */
   if(target_ipaddr != NULL) {
-    const struct link_stats *stats = rpl_get_parent_link_stats(probing_target);
     const linkaddr_t *lladdr = rpl_get_parent_lladdr(probing_target);
-    LOG_INFO("probing %u %s last tx %u min ago\n",
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC || RPL_DAG_MC == RPL_DAG_MC_RSSI
+    LOG_INFO("probing %u %s last rx %lu s ago\n",
              lladdr != NULL ? lladdr->u8[7] : 0x0,
              instance->urgent_probing_target != NULL ? "(urgent)" : "",
              probing_target != NULL && stats != NULL ?
-             (unsigned)((clock_time() - stats->last_tx_time) / (60 * CLOCK_SECOND)) : 0
+             (unsigned long)((clock_time() - stats->last_rx_time) / CLOCK_SECOND) : 0
              );
+#else
+    LOG_INFO("probing %u %s last tx %lu s ago\n",
+            lladdr != NULL ? lladdr->u8[7] : 0x0,
+            instance->urgent_probing_target != NULL ? "(urgent)" : "",
+            probing_target != NULL && stats != NULL ?
+            (unsigned long)((clock_time() - stats->last_tx_time) / CLOCK_SECOND) : 0
+            );
+#endif
 
     /* Send probe, e.g., a unicast DIO or DIS. */
     RPL_PROBING_SEND_FUNC(instance, target_ipaddr);
@@ -587,7 +609,17 @@ handle_probing_timer(void *ptr)
   }
 
   /* Schedule next probing. */
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  if((target_ipaddr != NULL && link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT) ||
+     (probing_target == instance->current_dag->preferred_parent &&
+     link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
+    rpl_schedule_probing_quick(instance);
+  } else {
+    rpl_schedule_probing(instance);
+  }
+#else
   rpl_schedule_probing(instance);
+#endif
 
   if(LOG_DBG_ENABLED) {
     rpl_print_neighbor_list();
@@ -601,6 +633,16 @@ rpl_schedule_probing(rpl_instance_t *instance)
              RPL_PROBING_DELAY_FUNC(instance->current_dag),
              handle_probing_timer, instance);
 }
+/*---------------------------------------------------------------------------*/
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+void
+rpl_schedule_probing_quick(rpl_instance_t *instance)
+{
+  ctimer_set(&instance->probing_timer,
+             RPL_PROBING_DELAY_FUNC(instance->current_dag) >> 1,
+             handle_probing_timer, instance);
+}
+#endif
 /*---------------------------------------------------------------------------*/
 void
 rpl_schedule_probing_now(rpl_instance_t *instance)

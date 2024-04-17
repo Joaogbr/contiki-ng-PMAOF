@@ -80,7 +80,7 @@ static rpl_of_t *const objective_functions[] = RPL_SUPPORTED_OFS;
 #endif /* !RPL_CONF_GROUNDED */
 
 #ifndef RPL_CONF_LINK_COST_HYSTERESIS
-#define RPL_LINK_COST_HYSTERESIS                    200
+#define RPL_LINK_COST_HYSTERESIS                    2048
 #else
 #define RPL_LINK_COST_HYSTERESIS                    RPL_CONF_LINK_COST_HYSTERESIS
 #endif /* !RPL_CONF_LINK_COST_HYSTERESIS */
@@ -240,12 +240,12 @@ rpl_get_parent_path_cost(rpl_parent_t *p)
   return 0xffff;
 }
 /*---------------------------------------------------------------------------*/
-int
+/*int
 rpl_parent_tx_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   return link_stats_tx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
-}
+}*/
 /*---------------------------------------------------------------------------*/
 int
 rpl_parent_rx_fresh(rpl_parent_t *p)
@@ -255,20 +255,25 @@ rpl_parent_rx_fresh(rpl_parent_t *p)
 }
 /*---------------------------------------------------------------------------*/
 int
-rpl_pref_parent_rx_fresh(rpl_parent_t *p)
-{
-  const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  if(fix_abs(stats->last_link_metric) >= fix16_from_int(256)) {
-    return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 2);
-  }
-  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1);
-}
-/*---------------------------------------------------------------------------*/
-int
 rpl_parent_probe_recent(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
+  if(stats->failed_probes > LINK_STATS_FAILED_PROBES_MAX_NUM) {
+    return link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME);
+  }
   return link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 1);
+}
+/*---------------------------------------------------------------------------*/
+int
+rpl_pref_parent_rx_fresh(rpl_parent_t *p)
+{
+  const struct link_stats *stats = rpl_get_parent_link_stats(p);
+  if(fix_abs(stats->last_link_metric) > fix16_from_int(3 * (RPL_LINK_COST_HYSTERESIS >> 2))) {
+    return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 2) ||
+           link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
+  }
+  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1) ||
+         link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
 }
 /*---------------------------------------------------------------------------*/
 #else
@@ -276,7 +281,11 @@ int
 rpl_parent_is_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
+#if RPL_DAG_MC == RPL_DAG_MC_RSSI
+  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
+#else
   return link_stats_tx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
+#endif
 }
 /*---------------------------------------------------------------------------*/
 #endif
@@ -962,22 +971,17 @@ best_parent(rpl_dag_t *dag, int fresh_only)
     return NULL;
   }
 
+  of = dag->instance->of;
+
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   if(dag->preferred_parent != NULL && (!fresh_only ||
-     rpl_parent_tx_fresh(dag->preferred_parent) || rpl_parent_rx_fresh(dag->preferred_parent))) {
-    uint16_t pp_cost = rpl_get_parent_path_cost(dag->preferred_parent);
-    const struct link_stats *pp_stats = rpl_get_parent_link_stats(dag->preferred_parent);
-
+     rpl_parent_rx_fresh(dag->preferred_parent)) &&
+     of->parent_is_acceptable(dag->preferred_parent)) {
     // Maintain the stability of the preferred parent if performance is acceptable.
-    if(pp_cost <= RPL_PATH_COST_HYSTERESIS * (dag->preferred_parent->mc.obj.movfac.hc + 1) &&
-       fix_abs(pp_stats->last_link_metric) <= fix16_from_int(RPL_LINK_COST_HYSTERESIS) &&
-       fix_abs(pp_stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD)) {
-      return dag->preferred_parent;
-    }
+    return dag->preferred_parent;
   }
 #endif
 
-  of = dag->instance->of;
   /* Search for the best parent according to the OF */
   for(p = nbr_table_head(rpl_parents); p != NULL; p = nbr_table_next(rpl_parents, p)) {
 
@@ -992,7 +996,7 @@ best_parent(rpl_dag_t *dag, int fresh_only)
     }
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(fresh_only && !(rpl_parent_tx_fresh(p) || rpl_parent_rx_fresh(p))) {
+    if(fresh_only && !rpl_parent_rx_fresh(p)) {
       /* Filter out non-fresh parents if fresh_only is set. */
       continue;
     }
@@ -1026,16 +1030,10 @@ rpl_select_parent(rpl_dag_t *dag)
   if(best != NULL) {
 #if RPL_WITH_PROBING
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(rpl_parent_tx_fresh(best) || rpl_parent_rx_fresh(best)) {
+    if(rpl_parent_rx_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
-      if(!(rpl_parent_tx_fresh(best) && rpl_parent_rx_fresh(best))) {
-        /* Probe the best parent shortly in order to get a fresh estimate. */
-        dag->instance->urgent_probing_target = best;
-        rpl_schedule_probing_now(dag->instance);
-      } else {
-        /* Unschedule any already scheduled urgent probing. */
-        dag->instance->urgent_probing_target = NULL;
-      }
+      /* Unschedule any already scheduled urgent probing. */
+      dag->instance->urgent_probing_target = NULL;
 #else
     if(rpl_parent_is_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
@@ -1052,9 +1050,17 @@ rpl_select_parent(rpl_dag_t *dag)
         /* Use best fresh */
         rpl_set_preferred_parent(dag, best_fresh);
       }
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+      if(!rpl_parent_probe_recent(best)) {
+        /* Probe the best parent shortly in order to get a fresh estimate. */
+        dag->instance->urgent_probing_target = best;
+        rpl_schedule_probing_now(dag->instance);
+      }
+#else
       /* Probe the best parent shortly in order to get a fresh estimate. */
       dag->instance->urgent_probing_target = best;
       rpl_schedule_probing_now(dag->instance);
+#endif
     }
 #else /* RPL_WITH_PROBING */
     rpl_set_preferred_parent(dag, best);
