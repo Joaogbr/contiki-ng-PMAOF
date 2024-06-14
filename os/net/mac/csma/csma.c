@@ -89,7 +89,7 @@ input_packet(void)
   } else if(!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER),
                                          &linkaddr_node_addr) &&
             !packetbuf_holds_broadcast()) {
-    LOG_WARN("not for us\n");
+    LOG_DBG("not for us\n");
     /* Don't pass to upper layers, but still count it in link stats */
     /*if(linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_SENDER), &linkaddr_pp_addr)){
       link_stats_input_callback(packetbuf_addr(PACKETBUF_ADDR_SENDER));

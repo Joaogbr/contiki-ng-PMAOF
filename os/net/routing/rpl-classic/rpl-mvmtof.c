@@ -58,35 +58,32 @@
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
 #define TX_RANGE            2000.0f /* m */
-#define DRSSI_SCALE         100
-#define MAX_LINK_METRIC     8192 /* dBm */
-#define PARENT_SWITCH_THRESHOLD 96 /* dBm */
-#define MAX_PATH_COST      32768 /* dBm */
-#define CF_ALPHA           TX_RANGE / DRSSI_SCALE
-#define CF_BETA            TX_RANGE / (4 * DRSSI_SCALE)
-#define RSSI_NOISE_THRESHOLD    0.0f
-#define MAX_ABS_RSSI       100 /* dBm */
-#define MOVFAC_WITH_ACCEL  1
+#define RSSI_RANGE          80.0f /* -10 - (-95) = 85 dBm */
+#define DRSSI_SCALE         (uint16_t)100
+#define MAX_LINK_METRIC     20*DRSSI_SCALE /* 80 m/s */
+#define PARENT_SWITCH_THRESHOLD 5 /* 2 m/s */
+#define MAX_PATH_COST       320*DRSSI_SCALE /* 500 m/s */
+#define CF_ALPHA            TX_RANGE / RSSI_RANGE
+#define CF_BETA             TX_RANGE / (4 * RSSI_RANGE)
+#define CF_GAMMA            0.25f
+#define RSSI_NOISE_THRESHOLD 0.0f
+#define MAX_ABS_RSSI        93 /* dBm */
+#define MOVFAC_WITH_ACCEL   1
+#define MOVFAC_TAU          30
+#define MOVFAC_WITH_EMANEXT 0
 
-#ifndef RPL_CONF_LINK_COST_HYSTERESIS
-#define RPL_LINK_COST_HYSTERESIS                    2048
-#else
-#define RPL_LINK_COST_HYSTERESIS                    RPL_CONF_LINK_COST_HYSTERESIS
-#endif /* !RPL_CONF_LINK_COST_HYSTERESIS */
+#define LINK_COST_RED                   18*DRSSI_SCALE /* 20 m/s */
+#define PATH_COST_RED                   (9 * LINK_COST_RED) / 8
+#define ABS_RSSI_RED                    89
 
-#ifndef RPL_CONF_PATH_COST_HYSTERESIS
-#define RPL_PATH_COST_HYSTERESIS                    (3 * RPL_LINK_COST_HYSTERESIS) / 2
-#else
-#define RPL_PATH_COST_HYSTERESIS                    RPL_CONF_PATH_COST_HYSTERESIS
-#endif /* !RPL_CONF_PATH_COST_HYSTERESIS */
+#define LINK_COST_ORANGE                18*DRSSI_SCALE /* 15 m/s */
+#define PATH_COST_ORANGE                (9 * LINK_COST_ORANGE) / 8
+#define ABS_RSSI_ORANGE                 85
 
-#ifndef RPL_CONF_ABS_RSSI_GUARD
-#define RPL_ABS_RSSI_GUARD                    90
-#else
-#define RPL_ABS_RSSI_GUARD                    RPL_CONF_ABS_RSSI_GUARD
-#endif /* !RPL_CONF_ABS_RSSI_GUARD */
+#define PATH_COST_ORANGE_THRESHOLD      10*DRSSI_SCALE /* 5 m/s */
+#define ABS_RSSI_ORANGE_THRESHOLD       20
 
-#define LINK_COST_LOW_RSSI_COUNT              -RPL_LINK_COST_HYSTERESIS
+#define LINK_COST_LOW_RSSI_COUNT              -((int16_t)LINK_COST_RED)
 
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
 #define MAX_LINK_METRIC     1024 /* dBm */
@@ -121,7 +118,7 @@
 #if !RPL_MRHOF_SQUARED_ETX
 /* Configuration parameters of RFC6719. Reject parents that have a higher
    link metric than the following. The default value is 512 but we use 1024. */
-#define MAX_LINK_METRIC     1024 /* Eq ETX of 8 */
+#define MAX_LINK_METRIC     (8 * ((uint16_t)LINK_STATS_ETX_DIVISOR)) /* Eq ETX of 8 */
 
 /*
  * Hysteresis of MRHOF: the rank must differ more than
@@ -129,32 +126,71 @@
  * parent. Default in RFC6719: 192, eq ETX of 1.5.  We use a more
  * aggressive setting: 96, eq ETX of 0.75.
  */
-#define PARENT_SWITCH_THRESHOLD 96 /* Eq ETX of 0.75 */
+#define PARENT_SWITCH_THRESHOLD (uint8_t)(0.75 * LINK_STATS_ETX_DIVISOR) /* Eq ETX of 0.75 */
 #else /* !RPL_MRHOF_SQUARED_ETX */
-#define MAX_LINK_METRIC     2048 /* Eq ETX of 4 */
-#define PARENT_SWITCH_THRESHOLD 160 /* Eq ETX of 1.25 (results in a churn comparable
-                                       to the threshold of 96 in the non-squared case) */
+#define MAX_LINK_METRIC     (16 * ((uint16_t)LINK_STATS_ETX_DIVISOR)) /* Eq ETX of 16 */
+#define PARENT_SWITCH_THRESHOLD (uint8_t)(1.25 * LINK_STATS_ETX_DIVISOR) /* Eq ETX of 1.25
+                                                                            (results in a
+                                                                            churn comparable
+                                                                            to the threshold
+                                                                            of 96 in the
+                                                                            non-squared case) */
 #endif /* !RPL_MRHOF_SQUARED_ETX */
 
 /* Reject parents that have a higher path cost than the following. */
-#define MAX_PATH_COST      32768   /* Eq path ETX of 256 */
+#define MAX_PATH_COST      (256 * ((uint16_t)LINK_STATS_ETX_DIVISOR))   /* Eq path ETX of 256 */
 #endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
 
 /*---------------------------------------------------------------------------*/
-/*#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
 static uint16_t
 sadd_u16(uint16_t a, uint16_t b)
 {
   uint16_t c = a + b;
   return c > a ? c : -1;
 }
-
+/*---------------------------------------------------------------------------*/
 static uint16_t
 ssub_u16(uint16_t a, uint16_t b)
 {
   return a > b ? a - b : 0;
 }
-#endif*/
+/*---------------------------------------------------------------------------*/
+static fix16_t
+get_rrssi(rpl_parent_t *p)
+{
+  const struct link_stats *stats = rpl_get_parent_link_stats(p);
+  if(stats == NULL) {
+    return 0;
+  }
+  /*if((stats->drssi_dt >= 0) != (stats->d2rssi_dt2 >= 0)) {
+    fix16_t tp_s = fix16_div(-stats->drssi_dt, stats->d2rssi_dt2);
+    fix16_t turn_pt = fix16_add(stats->last_rssi, fix16_add(fix16_mul(stats->drssi_dt, tp_s),
+                      fix16_mul(stats->d2rssi_dt2, fix16_sq(tp_s))));
+    if(turn_pt >= fix16_from_int(-ABS_RSSI_RED) && turn_pt <= fix16_from_int(ABS_RSSI_RED - 20)) {
+      return (stats->drssi_dt >= 0) ?
+             fix16_add(fix16_sub(turn_pt, stats->last_rssi),
+             fix16_add(fix16_from_int(ABS_RSSI_RED), turn_pt)) :
+             fix16_add(fix16_sub(stats->last_rssi, turn_pt),
+             fix16_add(fix16_from_int(ABS_RSSI_RED - 20), fix_abs(turn_pt)));
+    }
+  }
+  return (stats->drssi_dt >= 0) ?
+         fix16_add(fix16_from_int(ABS_RSSI_RED - 20), fix_abs(stats->last_rssi)) :
+         fix16_add(fix16_from_int(ABS_RSSI_RED), stats->last_rssi);*/
+  return (stats->last_link_metric >= 0 ?
+         fix16_add(fix16_from_int(ABS_RSSI_RED - 20), fix_abs(stats->last_rssi)) :
+         fix16_add(fix16_from_int(ABS_RSSI_RED), stats->last_rssi));
+}
+/*---------------------------------------------------------------------------*/
+/*static fix16_t
+get_dist_from_rssi(fix16_t rssi)
+{
+  fix16_t exponent = fix16_div(fix16_sub(RX_SENSITIVITY_DBM, rssi),
+                     fix16_mul(fix16_from_int(10), PATH_LOSS_EXPONENT));
+  return fix16_mul(fix16_from_float(TX_RANGE), fix16_pow(fix16_from_int(10), exponent));
+}*/
+#endif
 /*---------------------------------------------------------------------------*/
 static void
 reset(rpl_dag_t *dag)
@@ -186,39 +222,24 @@ parent_link_metric(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   if(stats != NULL) {
-#if RPL_DAG_MC == RPL_DAG_MC_ETX
-#if RPL_MRHOF_SQUARED_ETX
-    uint32_t squared_etx = ((uint32_t)stats->etx * stats->etx) / LINK_STATS_ETX_DIVISOR;
-    return (uint16_t)MIN(squared_etx, 0xffff);
-#else /* RPL_MRHOF_SQUARED_ETX */
-    return stats->etx;
-#endif /* RPL_MRHOF_SQUARED_ETX */
-#elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    int16_t arssi = fix16_to_int(fix16_mul(fix16_from_int(10), fix_abs(stats->last_rssi)));
-    if(arssi != LINK_STATS_RSSI_UNKNOWN) {
-      LOG_DBG("From: ");
-      LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-      LOG_DBG_(" -> Current RSSI: %d\n", arssi);
-      return (uint16_t)MIN(arssi, 0xffff);
-    }
-#elif RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
     uint8_t rssi_cnt = link_stats_get_rssi_count(stats, 0);
     if(rssi_cnt > 0) {
       if(stats->link_stats_metric_updated) {
         fix16_t drssi[LINK_STATS_RSSI_ARR_LEN-1] = {0};
         fix16_t drssi_dt[LINK_STATS_RSSI_ARR_LEN-1] = {0};
-        fix16_t diff_s_fix16, cf, result;
+        fix16_t diff_s_fix16, mf;
 
         if(rssi_cnt < 2) {
           /* Punish a bit if only one RSSI reading is available */
-          result = fix16_from_int(LINK_COST_LOW_RSSI_COUNT);
+          mf = fix16_from_int(LINK_COST_LOW_RSSI_COUNT);
         } else {
           for(int i = 0; i < rssi_cnt - 1; i++) {
             drssi[i] = fix16_mul(fix16_sub(stats->rssi[i], stats->rssi[i+1]), fix16_from_int(DRSSI_SCALE));
             diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
             drssi_dt[i] = fix16_div(drssi[i], diff_s_fix16);
           }
-          cf = fix16_mul(drssi_dt[0], fix16_from_float(CF_ALPHA));
+          mf = fix16_mul(drssi_dt[0], fix16_from_float(CF_ALPHA));
 #if MOVFAC_WITH_ACCEL
           if(rssi_cnt > 2) {
             fix16_t d2rssi_dt[LINK_STATS_RSSI_ARR_LEN-2] = {0};
@@ -229,26 +250,58 @@ parent_link_metric(rpl_parent_t *p)
               d2rssi_dt2[i] = fix16_div(d2rssi_dt[i], diff_s_fix16);
             }
 
+            fix16_t ratio = fix16_div(d2rssi_dt2[0], drssi_dt[0] + !drssi_dt[0]);
             if((d2rssi_dt2[0] >= 0) == (drssi_dt[0] >= 0)) {
-              cf = fix16_add(cf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
-            } else if(fix_abs(d2rssi_dt2[0]) >= fix_abs(drssi_dt[0])) {
-              cf = -fix16_sub(cf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
+              //mf = fix16_add(mf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
+              //mf = fix16_mul(mf, fix16_add(fix16_one, (ratio < fix16_one ? fix16_sq(ratio) : fix16_sqrt(ratio))));
+              //mf = fix16_mul(mf, fix16_add(fix16_one, fix16_div(fix16_sq(ratio), fix16_add(fix16_one, fix16_sq(ratio)))));
+              mf = fix16_mul(mf, fix16_add(fix16_one, fix16_log(fix16_add(fix16_one, ratio))));
+              //mf = fix16_mul(mf, fix16_exp(ratio));
+            } else {
+              if(fix_abs(d2rssi_dt2[0]) >= fix_abs(drssi_dt[0])) {
+                //mf = -fix16_sub(mf, fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_BETA)));
+                mf = fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_ALPHA));
+              } else if(fix_abs(ratio) > fix16_from_float(CF_GAMMA)) {
+                mf = -mf;
+              }
             }
           }
+#elif MOVFAC_WITH_EMANEXT
+          if(stats->link_stats_metric_updated != 0xff) {
+            diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[0] - stats->last_lm_time, CLOCK_SECOND);
+            mf = diff_s_fix16 <= fix16_from_int(5*MOVFAC_TAU) ?
+                 fix16_ema(stats->last_link_metric, mf, diff_s_fix16, fix16_from_int(MOVFAC_TAU)) :
+                 mf;
+          }
 #endif
-          result = cf;
+          link_stats_metric_update_callback(rpl_get_parent_lladdr(p), mf/*, stats->rx_time[0]*/);
         }
 
-        link_stats_metric_update_callback(rpl_get_parent_lladdr(p), result);
-        return (uint16_t) MIN(fix16_to_int(fix_abs(result)), 0xffff);
+        return (uint16_t) MIN(fix16_to_int(fix_abs(mf)), 0xffff);
       }
       return (uint16_t) MIN(fix16_to_int(fix_abs(stats->last_link_metric)), 0xffff);
     }
-#endif /* RPL_DAG_MC == RPL_DAG_MC_ETX */
+#elif RPL_DAG_MC == RPL_DAG_MC_RSSI
+    if(stats->last_rssi != fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
+      int16_t arssi = fix16_to_int(fix16_mul(fix16_from_int(10), fix_abs(stats->last_rssi)));
+      LOG_DBG("From: ");
+      LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
+      LOG_DBG_(" -> Current RSSI: %d\n", arssi);
+      return (uint16_t)MIN(arssi, 0xffff);
+    }
+#else /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#if RPL_MRHOF_SQUARED_ETX
+    uint32_t squared_etx = ((uint32_t)stats->etx * stats->etx) / LINK_STATS_ETX_DIVISOR;
+    return (uint16_t)MIN(squared_etx, 0xffff);
+#else /* RPL_MRHOF_SQUARED_ETX */
+    return stats->etx;
+#endif /* RPL_MRHOF_SQUARED_ETX */
+#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
   }
   return 0xffff;
 }
 /*---------------------------------------------------------------------------*/
+#if RPL_WITH_MC
 static uint8_t
 parent_hop_count(rpl_parent_t *p)
 {
@@ -262,6 +315,7 @@ parent_hop_count(rpl_parent_t *p)
 
   return base < 0xff ? base + 1 : base;
 }
+#endif
 /*---------------------------------------------------------------------------*/
 static uint16_t
 parent_path_cost(rpl_parent_t *p)
@@ -320,11 +374,30 @@ rank_via_parent(rpl_parent_t *p)
 static int
 parent_is_acceptable(rpl_parent_t *p)
 {
+  uint16_t p_cost = parent_path_cost(p);
+  uint8_t p_hc = parent_hop_count(p);
+  uint8_t res = 0;
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  /* Exclude links with too high link metrics or path cost. (RFC6719, 3.2.2) */
-  return parent_path_cost(p) <= RPL_PATH_COST_HYSTERESIS * parent_hop_count(p) &&
-     fix_abs(stats->last_link_metric) <= fix16_from_int(RPL_LINK_COST_HYSTERESIS) &&
-     fix_abs(stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD);
+  if(stats == NULL) {
+    return 0;
+  } else if(/*stats->last_tx_time > stats->last_rx_time ? stats->etx > 896 :*/
+     fix_abs(stats->last_rssi) > fix16_from_int(ABS_RSSI_RED)) {
+    res |= 0x01;
+  } /*else if(stats->etx > 896) {
+    res |= 0x02;
+  }*/ else if(fix_abs(stats->last_link_metric) > fix16_from_int(LINK_COST_RED)) {
+    res |= 0x04;
+  } else if(p_cost > PATH_COST_RED * p_hc) {
+    res |= 0x08;
+  }
+  /*if(p_cost <= PATH_COST_ORANGE * p_hc &&
+     fix_abs(stats->last_link_metric) <= fix16_from_int(LINK_COST_ORANGE) &&
+     ((fix_abs(stats->last_rssi) <= fix16_from_int(ABS_RSSI_ORANGE) && stats->etx <= 768) ||
+     ((stats->last_link_metric >= 0) &&
+     (fix_abs(stats->last_rssi) <= fix16_from_int(ABS_RSSI_RED) && stats->etx <= 896)))) {
+    res |= 0x20;
+  }*/
+  return res ? res : 0x10;
 }
 #endif
 /*---------------------------------------------------------------------------*/
@@ -334,7 +407,9 @@ parent_has_usable_link(rpl_parent_t *p)
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   /* Exclude links with too high link metrics  */
-  return parent_link_metric(p) <= MAX_LINK_METRIC && fix_abs(stats->last_rssi) <= fix16_from_int(MAX_ABS_RSSI);
+  return (stats != NULL) && parent_link_metric(p) <= MAX_LINK_METRIC &&
+         (/*stats->last_tx_time > stats->last_rx_time ? stats->etx <= 1024 :*/
+         fix_abs(stats->last_rssi) <= fix16_from_int(MAX_ABS_RSSI));
 #else
   /* Exclude links with too high link metrics  */
   return parent_link_metric(p) <= MAX_LINK_METRIC;
@@ -345,13 +420,12 @@ static int
 parent_is_usable(rpl_parent_t *p)
 {
   /* Exclude links with too high link metrics or path cost. (RFC6719, 3.2.2) */
-  return parent_has_usable_link(p) && parent_path_cost(p) <= MAX_PATH_COST;
+  return parent_has_usable_link(p) && (parent_path_cost(p) <= MAX_PATH_COST);
 }
 /*---------------------------------------------------------------------------*/
 static rpl_parent_t *
 best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
 {
-  //rpl_dag_t *dag;
   uint16_t p1_cost;
   uint16_t p2_cost;
   int p1_is_usable;
@@ -371,44 +445,56 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
   int p1_is_acceptable = parent_is_acceptable(p1);
   int p2_is_acceptable = parent_is_acceptable(p2);
 
-  if(p1_is_acceptable != p2_is_acceptable) {
-    return p1_is_acceptable ? p1 : p2;
+  if((p1_is_acceptable & 0xf0) != (p2_is_acceptable & 0xf0)) {
+    return (p1_is_acceptable & 0xf0) ? p1 : p2;
+  } else if((p1_is_acceptable & 0x03) != (p2_is_acceptable & 0x03)) {
+    return (p1_is_acceptable & 0x03) ? p2 : p1;
   }
 #endif
 
-  //dag = p1->dag; /* Both parents are in the same DAG. */
   p1_cost = parent_path_cost(p1);
   p2_cost = parent_path_cost(p2);
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  const struct link_stats *p1_stats = rpl_get_parent_link_stats(p1);
-  const struct link_stats *p2_stats = rpl_get_parent_link_stats(p2);
-
+  int16_t diff_rrssi = (int16_t) fix16_to_int(fix16_sub(get_rrssi(p1), get_rrssi(p2)));
   /* Maintain the stability of the preferred parent if performance is acceptable, unless a much better candidate is available. */
-  /*if((p1 == dag->preferred_parent || p2 == dag->preferred_parent) && p1_is_acceptable) {
-    if((p1_cost < sadd_u16(p2_cost, PARENT_SWITCH_THRESHOLD << 1) &&
-       p1_cost > ssub_u16(p2_cost, PARENT_SWITCH_THRESHOLD << 1)) ||
-       ((p1_cost < sadd_u16(p2_cost, PARENT_SWITCH_THRESHOLD << 2) &&
-       p1_cost > ssub_u16(p2_cost, PARENT_SWITCH_THRESHOLD << 2)) &&
-       ((p1_stats->last_link_metric >= 0) == (p2_stats->last_link_metric >= 0)))) {
+  /*rpl_dag_t *dag = p1->dag; // Both parents are in the same DAG.
+  if((p1 == dag->preferred_parent || p2 == dag->preferred_parent)) {
+    int p1_is_pp = (p1 == dag->preferred_parent);
+    int pp_is_acceptable = p1_is_pp ? p1_is_acceptable : p2_is_acceptable;
+    if(pp_is_acceptable & 0xf0) {
+      int not_pp_is_acceptable = p1_is_pp ? p2_is_acceptable : p1_is_acceptable;
+      if(not_pp_is_acceptable > pp_is_acceptable) {
+        uint16_t pp_cost = p1_is_pp ? p1_cost : p2_cost;
+        uint16_t not_pp_cost = p1_is_pp ? p2_cost : p1_cost;
+        uint8_t pp_rrssi = (uint8_t) fix16_to_int(p1_is_pp ? get_rrssi(p1) : get_rrssi(p2));
+        uint8_t not_pp_rrssi = (uint8_t) fix16_to_int(p1_is_pp ? get_rrssi(p2) : get_rrssi(p1));
+        if(not_pp_cost <= pp_cost && not_pp_rrssi >= pp_rrssi) {
+          if(pp_cost - not_pp_cost > PATH_COST_ORANGE_THRESHOLD ||
+             not_pp_rrssi - pp_rrssi > ABS_RSSI_ORANGE_THRESHOLD) {
+            return p1_is_pp ? p2 : p1;
+          }
+        }
+      }
+      return dag->preferred_parent;
+    }
+
+    if(p1_cost < p2_cost + DRSSI_SCALE &&
+       p1_cost > p2_cost - DRSSI_SCALE &&
+       abs(diff_rrssi) < 10) {
       return dag->preferred_parent;
     }
   }*/
 
   /* If there is no preferred parent, and thus stability is of no concern, go through a series of relations */
   /* Order of priority, highest to lowest: path cost -> link cost -> RSSI -> link cost sign -> new parent? -> hop count -> last rx time */
-  if(p1_cost < p2_cost + PARENT_SWITCH_THRESHOLD &&
-     p1_cost > p2_cost - PARENT_SWITCH_THRESHOLD) {
-    if((p1_stats->last_link_metric >= 0) == (p2_stats->last_link_metric >= 0)) {
-      if((p1_stats->last_link_metric >= 0) && (fix_abs(p1_stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD)) &&
-         (fix_abs(p2_stats->last_rssi) <= fix16_from_int(RPL_ABS_RSSI_GUARD))) {
-        return fix_abs(p1_stats->last_rssi) > fix_abs(p2_stats->last_rssi) ? p1 : p2;
-      }
-      return fix_abs(p1_stats->last_rssi) < fix_abs(p2_stats->last_rssi) ? p1 : p2;
-    }
-    return p1_stats->last_link_metric >= 0 ? p1 : p2;
+  uint16_t sw_threshold = ((uint16_t) abs(diff_rrssi)) * PARENT_SWITCH_THRESHOLD;
+  if(p1_cost < sadd_u16(p2_cost, sw_threshold) &&
+     p1_cost > ssub_u16(p2_cost, sw_threshold)) {
+    return diff_rrssi > 0 ? p1 : p2;
   }
 #else
+  rpl_dag_t *dag = p1->dag; /* Both parents are in the same DAG. */
   /* Maintain the stability of the preferred parent in case of similar ranks. */
   if(p1 == dag->preferred_parent || p2 == dag->preferred_parent) {
     if(p1_cost < p2_cost + PARENT_SWITCH_THRESHOLD &&

@@ -75,6 +75,30 @@ rpl_nbr_gc_get_worst(const linkaddr_t *lladdr1, const linkaddr_t *lladdr2)
   return get_rank(lladdr2) > get_rank(lladdr1) ? lladdr2 : lladdr1;
 }
 /*---------------------------------------------------------------------------*/
+static rpl_rank_t
+get_path_cost(const linkaddr_t *lladdr)
+{
+  rpl_parent_t *p = rpl_get_parent((uip_lladdr_t *)lladdr);
+  if(p == NULL) {
+    return 0xffff;
+  } else {
+    rpl_instance_t *instance = rpl_get_default_instance();
+    if(instance == NULL) {
+      return 0xffff;
+    } else if(!instance->of->parent_has_usable_link(p)) {
+      return 0xffff;
+    } else {
+      return instance->of->parent_path_cost(p);
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
+const linkaddr_t *
+rpl_nbr_gc_get_worst_path(const linkaddr_t *lladdr1, const linkaddr_t *lladdr2)
+{
+  return get_path_cost(lladdr2) > get_path_cost(lladdr1) ? lladdr2 : lladdr1;
+}
+/*---------------------------------------------------------------------------*/
 static bool
 can_accept_new_parent(const linkaddr_t *candidate_for_removal, rpl_dio_t *dio)
 {

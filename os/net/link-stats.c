@@ -49,7 +49,7 @@
 
 /* EWMA (exponential moving average) used to maintain statistics over time */
 #define EWMA_SCALE                     100
-#define EWMA_ALPHA                      40 //10
+#define EWMA_ALPHA                      10
 #define EWMA_BOOTSTRAP_ALPHA            25
 #define EMA_TAU                         10 /* Seconds */
 
@@ -206,6 +206,7 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
     stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
     stats->last_rx_time = 0;
     stats->last_probe_time = 0;
+    stats->link_stats_metric_updated = 0xff;
   }
 
   if(status == MAC_TX_QUEUE_FULL) {
@@ -295,6 +296,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
     stats->last_rx_time = 0;
     stats->last_probe_time = 0;
+    stats->link_stats_metric_updated = 0xff;
   }
 
   if(stats->last_rssi == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
@@ -306,7 +308,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     stats->last_rssi = fix16_from_int(packet_rssi);
     stats->rssi[0] = stats->last_rssi;
 
-    stats->link_stats_metric_updated = 1;
+    stats->link_stats_metric_updated |= 1;
   } else {
     clock_time_t clock_now = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
@@ -342,7 +344,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       LOG_DBG_LLADDR(lladdr);
       LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->rssi[0]), stats->rx_time[0]);
 
-      stats->link_stats_metric_updated = 1;
+      stats->link_stats_metric_updated |= 1;
     }
 #endif
   }
@@ -429,13 +431,13 @@ link_stats_init(void)
 /*---------------------------------------------------------------------------*/
 /* Update OF link metric */
 void
-link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric)
+link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric/*, clock_time_t lm_time*/)
 {
   struct link_stats *stats;
   stats = nbr_table_get_from_lladdr(link_stats, lladdr);
   if(stats != NULL) {
     stats->last_link_metric = link_metric;
-    //stats->last_cf = cf;
+    //stats->last_lm_time = lm_time;
     stats->link_stats_metric_updated = 0;
   }
 }

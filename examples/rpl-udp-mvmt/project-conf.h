@@ -62,8 +62,8 @@
 #define RPL_CONF_DAG_MC RPL_DAG_MC_MOVFAC
 
 /* If always larger than the link cost, merely acts as a hop count (RFC6719)*/
-#define RPL_CONF_MIN_HOPRANKINC          128
-//#define RPL_CONF_MAX_RANKINC             (16 * RPL_MIN_HOPRANKINC)
+#define RPL_CONF_MIN_HOPRANKINC          200
+//#define RPL_CONF_MAX_RANKINC             (10 * RPL_CONF_MIN_HOPRANKINC)
 
 #define RPL_CONF_PROBING_SEND_FUNC(instance, addr) dis_output((addr))
 
@@ -73,15 +73,11 @@
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
-#define RPL_CONF_LINK_COST_HYSTERESIS            2048
-#define RPL_CONF_PATH_COST_HYSTERESIS            (3 * RPL_CONF_LINK_COST_HYSTERESIS) / 2
-#define RPL_CONF_ABS_RSSI_GUARD                  90
-
 /* Application settings */
 #define APP_WARM_UP_PERIOD_SEC 120
 
 #define SICSLOWPAN_CONF_FRAG 0 /* 1 if using cam, 0 otherwise */
 //#define UIP_CONF_BUFFER_SIZE 200 /* 300 if using cam, 200 otherwise */
-//#define QUEUEBUF_CONF_NUM 8
+#define QUEUEBUF_CONF_NUM 8
 
 //#define COOJA_RADIO_CONF_BUFSIZE 200

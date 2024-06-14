@@ -610,9 +610,10 @@ handle_probing_timer(void *ptr)
 
   /* Schedule next probing. */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  if((target_ipaddr != NULL && link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT) ||
+  if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT ||
      (probing_target == instance->current_dag->preferred_parent &&
-     link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
+     (link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT /*||
+     !(instance->of->parent_is_acceptable(probing_target) & 0xf0)*/)))) {
     rpl_schedule_probing_quick(instance);
   } else {
     rpl_schedule_probing(instance);

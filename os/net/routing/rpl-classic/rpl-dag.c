@@ -79,24 +79,6 @@ static rpl_of_t *const objective_functions[] = RPL_SUPPORTED_OFS;
 #define RPL_GROUNDED                    RPL_CONF_GROUNDED
 #endif /* !RPL_CONF_GROUNDED */
 
-#ifndef RPL_CONF_LINK_COST_HYSTERESIS
-#define RPL_LINK_COST_HYSTERESIS                    2048
-#else
-#define RPL_LINK_COST_HYSTERESIS                    RPL_CONF_LINK_COST_HYSTERESIS
-#endif /* !RPL_CONF_LINK_COST_HYSTERESIS */
-
-#ifndef RPL_CONF_PATH_COST_HYSTERESIS
-#define RPL_PATH_COST_HYSTERESIS                    (3 * RPL_LINK_COST_HYSTERESIS) / 2
-#else
-#define RPL_PATH_COST_HYSTERESIS                    RPL_CONF_PATH_COST_HYSTERESIS
-#endif /* !RPL_CONF_PATH_COST_HYSTERESIS */
-
-#ifndef RPL_CONF_ABS_RSSI_GUARD
-#define RPL_ABS_RSSI_GUARD                    90
-#else
-#define RPL_ABS_RSSI_GUARD                    RPL_CONF_ABS_RSSI_GUARD
-#endif /* !RPL_CONF_ABS_RSSI_GUARD */
-
 /*---------------------------------------------------------------------------*/
 /* Per-parent RPL information */
 NBR_TABLE_GLOBAL(rpl_parent_t, rpl_parents);
@@ -268,11 +250,11 @@ int
 rpl_pref_parent_rx_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  if(fix_abs(stats->last_link_metric) > fix16_from_int(3 * (RPL_LINK_COST_HYSTERESIS >> 2))) {
-    return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 2) ||
+  if(p->dag->instance->of->parent_is_acceptable(p)/* > 1*/) {
+    return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1) ||
            link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
   }
-  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1) ||
+  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 2) ||
          link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
 }
 /*---------------------------------------------------------------------------*/
@@ -306,7 +288,7 @@ rpl_parent_is_reachable(rpl_parent_t *p)
 
   /* If we don't have fresh link information, assume the parent is reachable. */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  return !rpl_parent_rx_fresh(p) ||
+  return !(/*rpl_parent_tx_fresh(p) &&*/ rpl_parent_rx_fresh(p)) ||
          p->dag->instance->of->parent_has_usable_link(p);
 #else
   return !rpl_parent_is_fresh(p) ||
@@ -960,6 +942,41 @@ rpl_select_dag(rpl_instance_t *instance, rpl_parent_t *p)
   return best_dag;
 }
 /*---------------------------------------------------------------------------*/
+static int
+filter_parent(rpl_parent_t * p, rpl_dag_t *dag, int fresh_only)
+{
+  /* Exclude parents that are from other DAGs or are announcing an
+     infinite rank. */
+  if(p->dag != dag || p->rank == RPL_INFINITE_RANK ||
+     p->rank < ROOT_RANK(dag->instance)) {
+    if(p->rank < ROOT_RANK(dag->instance)) {
+      LOG_WARN("Parent has invalid rank\n");
+    }
+    return 1;
+  }
+
+#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  if(fresh_only && !(/*rpl_parent_tx_fresh(p) ||*/ rpl_parent_rx_fresh(p))) {
+    /* Filter out non-fresh parents if fresh_only is set. */
+    return 1;
+  }
+#else
+  if(fresh_only && !rpl_parent_is_fresh(p)) {
+    /* Filter out non-fresh parents if fresh_only is set. */
+    return 1;
+  }
+#endif
+
+#if UIP_ND6_SEND_NS
+  /* Exclude links to a neighbor that is not reachable at a NUD level. */
+  if(rpl_get_nbr(p) == NULL) {
+    return 1;
+  }
+#endif /* UIP_ND6_SEND_NS */
+
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
 static rpl_parent_t *
 best_parent(rpl_dag_t *dag, int fresh_only)
 {
@@ -974,45 +991,29 @@ best_parent(rpl_dag_t *dag, int fresh_only)
   of = dag->instance->of;
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  if(dag->preferred_parent != NULL && (!fresh_only ||
-     rpl_parent_rx_fresh(dag->preferred_parent)) &&
-     of->parent_is_acceptable(dag->preferred_parent)) {
-    // Maintain the stability of the preferred parent if performance is acceptable.
-    return dag->preferred_parent;
+  int pp_is_acceptable = 0;
+  if(dag->preferred_parent != NULL &&
+     !filter_parent(dag->preferred_parent, dag, fresh_only)) {
+    pp_is_acceptable = of->parent_is_acceptable(dag->preferred_parent);
+    if(pp_is_acceptable /*> 1*/) {
+      // Maintain the stability of the preferred parent if performance is acceptable.
+      return dag->preferred_parent;
+    }
   }
 #endif
 
   /* Search for the best parent according to the OF */
   for(p = nbr_table_head(rpl_parents); p != NULL; p = nbr_table_next(rpl_parents, p)) {
 
-    /* Exclude parents that are from other DAGs or are announcing an
-       infinite rank. */
-    if(p->dag != dag || p->rank == RPL_INFINITE_RANK ||
-       p->rank < ROOT_RANK(dag->instance)) {
-      if(p->rank < ROOT_RANK(dag->instance)) {
-        LOG_WARN("Parent has invalid rank\n");
-      }
+    if(filter_parent(p, dag, fresh_only)) {
       continue;
     }
-
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(fresh_only && !rpl_parent_rx_fresh(p)) {
-      /* Filter out non-fresh parents if fresh_only is set. */
+    /*else if(pp_is_acceptable > 0 && p != dag->preferred_parent &&
+            of->parent_is_acceptable(p) <= pp_is_acceptable) {
       continue;
-    }
-#else
-    if(fresh_only && !rpl_parent_is_fresh(p)) {
-      /* Filter out non-fresh parents if fresh_only is set. */
-      continue;
-    }
+    }*/
 #endif
-
-#if UIP_ND6_SEND_NS
-    /* Exclude links to a neighbor that is not reachable at a NUD level. */
-    if(rpl_get_nbr(p) == NULL) {
-      continue;
-    }
-#endif /* UIP_ND6_SEND_NS */
 
     /* Now we have an acceptable parent, check if it is the new best. */
     best = of->best_parent(best, p);
@@ -1030,10 +1031,17 @@ rpl_select_parent(rpl_dag_t *dag)
   if(best != NULL) {
 #if RPL_WITH_PROBING
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(rpl_parent_rx_fresh(best)) {
+    if(/*rpl_parent_tx_fresh(best) ||*/ rpl_parent_rx_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
-      /* Unschedule any already scheduled urgent probing. */
-      dag->instance->urgent_probing_target = NULL;
+      /*if(!rpl_parent_tx_fresh(best) || !(rpl_parent_rx_fresh(best) ||
+         rpl_parent_probe_recent(best))) {
+        // Probe the best parent shortly in order to get a fresh estimate.
+        dag->instance->urgent_probing_target = best;
+        rpl_schedule_probing_now(dag->instance);
+      } else {*/
+        // Unschedule any already scheduled urgent probing.
+        dag->instance->urgent_probing_target = NULL;
+      //}
 #else
     if(rpl_parent_is_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
@@ -1550,7 +1558,7 @@ rpl_process_parent_event(rpl_instance_t *instance, rpl_parent_t *p)
   if(!acceptable_rank(p->dag, rpl_rank_via_parent(p))) {
     /* The candidate parent is no longer valid: the rank increase
        resulting from the choice of it as a parent would be too high. */
-    LOG_WARN("Unacceptable rank %u (Current min %u, MaxRankInc %u)\n",
+    LOG_WARN("Unacceptable rank (Parent rank %u, Current min %u, MaxRankInc %u)\n",
              (unsigned)p->rank,
              p->dag->min_rank, p->dag->instance->max_rankinc);
     rpl_nullify_parent(p);

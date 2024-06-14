@@ -86,7 +86,7 @@ def plot(results, metric, ylabel, ranges_list):
         b.set_edgecolor("black")
         b.set_linewidth(1)
 
-    ids = ["", ""]
+    ids = [""]
     #ticks = [pos + 0.5 + range(len(ids)).index(pos) for pos in range(len(ids))]
     pl.xticks(x, [str(u) for u in ids], fontsize=7)
     pl.yticks(fontsize=7)
@@ -114,6 +114,12 @@ def plot(results, metric, ylabel, ranges_list):
     pl.close()
 
 #######################################################
+# Sort directories numerically
+
+def num_sort(dir):
+    return int(dir.split("/")[-1])
+
+#######################################################
 # Run the application
 
 def main():
@@ -129,6 +135,7 @@ def main():
         global SIM_PATH
         SIM_PATH = os.path.join(SELF_PATH, pargs.to_dir)
     subdirs = [x[0] for x in os.walk(SIM_PATH)][1:]
+    subdirs = sorted(subdirs, key=num_sort)
     output_file = os.path.join(SIM_PATH, "multisim-analysis_results.txt")
     ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, avg_justice_index = (np.zeros(len(subdirs)) for _ in range(6))
 
@@ -141,7 +148,7 @@ def main():
         d, ll_par[idx], ll_queue_dropped[idx], e2e_sent[idx], e2e_received[idx], avg_rpl_tj[idx], avg_justice_index[idx] = analyze_results(input_file)
         results.append(d)
 
-    ranges = [0, 10, 20]
+    ranges = [0, 10]
     plot(results, "PDR", "PDR, em porcentagem", ranges)
     plot(results, "Trocas", "Quantidade de trocas de pai", ranges)
     plot(results, "Atraso", "Atraso médio fim-a-fim, em ms", ranges)

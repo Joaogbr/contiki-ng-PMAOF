@@ -152,6 +152,7 @@ struct link_stats {
   clock_time_t last_rx_time;  /* Last Rx timestamp */
   clock_time_t rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps */
   clock_time_t last_probe_time;  /* Last Probe (DIO/DIS) timestamp */
+  //clock_time_t last_lm_time; /* Last link metric timestamp */
   uint16_t etx;               /* ETX using ETX_DIVISOR as fixed point divisor. Zero if not yet measured. */
   fix16_t last_rssi; /* Latest RSSI (received signal strength) value. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   fix16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
@@ -196,7 +197,7 @@ void link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx);
 /* Packet input callback. Updates statistics for receptions on a given link */
 void link_stats_input_callback(const linkaddr_t *lladdr);
 /* Updates Objective Function result for a given link */
-void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric);
+void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric/*, clock_time_t lm_time*/);
 /* Updates last probing time for a given link */
 void link_stats_probe_callback(const linkaddr_t *lladdr, clock_time_t probe_time);
 
