@@ -399,9 +399,18 @@ def analyze_results(filename, is_testbed):
     total_e2e_delay = 0
     total_e2e_jitter = 0
     # justice index
-    ji_numerator = 0
-    ji_denominator = 0
-    justice_index = 0
+    ji_num_pdr = 0
+    ji_den_pdr = 0
+    justice_index_pdr = 0
+    ji_num_pc = 0
+    ji_den_pc = 0
+    justice_index_pc = 0
+    ji_num_delay = 0
+    ji_den_delay = 0
+    justice_index_delay = 0
+    ji_num_jitter = 0
+    ji_den_jitter = 0
+    justice_index_jitter = 0
 
     discnt = 0
     for k in sorted(nodes.keys()):
@@ -433,16 +442,25 @@ def analyze_results(filename, is_testbed):
             total_rpl_time_joined += n.rpl_time_joined_msec / 1000
             total_e2e_sent += e2e_sent
             total_e2e_received += e2e_received
-            # Do not count if no messages got received at root
+            # Do not count if no messages were received at root
             if len(n.seqnums_received_on_root[0]):
-                ji_numerator += n.avg_e2e_delay
-                ji_denominator += n.avg_e2e_delay**2
+                ji_num_pdr += n.pdr
+                ji_den_pdr += n.pdr**2
+                ji_num_pc += n.rpl_parent_changes
+                ji_den_pc += n.rpl_parent_changes**2
+                ji_num_delay += n.avg_e2e_delay
+                ji_den_delay += n.avg_e2e_delay**2
+                ji_num_jitter += n.jitter
+                ji_den_jitter += n.jitter**2
             else:
                 discnt += 1
     ll_par = 100.0 * total_ll_acked / total_ll_sent if total_ll_sent else 0.0
     avg_rpl_time_joined = total_rpl_time_joined / (k-1)
-    justice_index = (ji_numerator ** 2) / (ji_denominator * (k-1)) if (k-discnt-1) else 0.0
-    return r, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_time_joined, justice_index
+    justice_index_pdr = (ji_num_pdr ** 2) / (ji_den_pdr * (k-1)) if (k-discnt-1) else 0.0
+    justice_index_pc = (ji_num_pc ** 2) / (ji_den_pc * (k-1)) if (k-discnt-1) else 0.0
+    justice_index_delay = (ji_num_delay ** 2) / (ji_den_delay * (k-1)) if (k-discnt-1) else 0.0
+    justice_index_jitter = (ji_num_jitter ** 2) / (ji_den_jitter * (k-1)) if (k-discnt-1) else 0.0
+    return r, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_time_joined, justice_index_pdr, justice_index_pc, justice_index_delay, justice_index_jitter
 
 #######################################################
 # Plot the results of a given metric as a bar chart
@@ -496,7 +514,7 @@ def main():
     with open(input_file, "r") as f:
         is_testbed = "Starting COOJA logger" not in f.read()
 
-    results, ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, jus_idx = analyze_results(
+    results, ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, jus_idx_pdr, jus_idx_pc, jus_idx_delay, jus_idx_jitter = analyze_results(
         input_file, is_testbed)
 
     e2e_pdr = [r["pdr"] for r in results]
@@ -504,15 +522,15 @@ def main():
     avg_e2e_delay = [r["avg_e2e_delay"] for r in results]
     avg_e2e_jitter = [r["jitter"] for r in results]
 
-    output_stream.append("Link-layer PAR = {:.2f} (total of {} packets dropped in queue) End-to-end PDR = [ mean= {:.2f} std= {:.2f} ]".format(
+    output_stream.append("Link-layer PAR = {:.3f} (total of {} packets dropped in queue) End-to-end PDR = [ mean= {:.3f} std= {:.3f} ]".format(
         ll_par, ll_queue_dropped, np.mean(e2e_pdr), np.nanstd(e2e_pdr)))
     output_stream.append("Total packets sent = {} Total packets received = {}".format(
         e2e_sent, e2e_received))
-    output_stream.append("No. of parent switches = [ mean= {:.2f} std= {:.2f} ] Avg. time joined = {:.2f} s".format(
+    output_stream.append("No. of parent switches = [ mean= {:.3f} std= {:.3f} ] Avg. time joined = {:.3f} s".format(
         np.mean(rpl_ps), np.nanstd(rpl_ps), avg_rpl_tj))
-    output_stream.append("End-to-end total delay = [ mean= {:.2f} std= {:.2f} ] ms End-to-end total jitter = [ mean= {:.2f} std= {:.2f} ] ms".format(
+    output_stream.append("End-to-end total delay = [ mean= {:.3f} std= {:.3f} ] ms End-to-end total jitter = [ mean= {:.3f} std= {:.3f} ] ms".format(
         np.nanmean(avg_e2e_delay), np.nanstd(avg_e2e_delay), np.nanmean(avg_e2e_jitter), np.nanstd(avg_e2e_jitter)))
-    output_stream.append("Jain's Justice Index = {:.3f}".format(jus_idx))
+    output_stream.append("Jain's Justice Index: PDR = {:.3f} Parent Switches = {:.3f} Delay = {:.3f} Jitter = {:.3f}".format(jus_idx_pdr, jus_idx_pc, jus_idx_delay, jus_idx_jitter))
 
     print(*output_stream, sep = "\n", file = sys.stdout)
     print(*output_stream, sep = "\n", file = of)

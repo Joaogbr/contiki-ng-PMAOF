@@ -69,15 +69,15 @@
 
 //#define RPL_CONF_DIO_INTERVAL_MIN        12 //12
 //#define RPL_CONF_DIO_INTERVAL_DOUBLINGS  5 //8
-#define RPL_CONF_PROBING_INTERVAL        (60 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
+#define RPL_CONF_PROBING_INTERVAL        (40 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
 /* Application settings */
 #define APP_WARM_UP_PERIOD_SEC 120
 
-#define SICSLOWPAN_CONF_FRAG 0 /* 1 if using cam, 0 otherwise */
-//#define UIP_CONF_BUFFER_SIZE 200 /* 300 if using cam, 200 otherwise */
+#define SICSLOWPAN_CONF_FRAG 0
+//#define UIP_CONF_BUFFER_SIZE 200
 #define QUEUEBUF_CONF_NUM 8
 
 //#define COOJA_RADIO_CONF_BUFSIZE 200

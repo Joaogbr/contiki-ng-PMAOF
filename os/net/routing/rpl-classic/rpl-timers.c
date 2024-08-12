@@ -404,9 +404,11 @@ get_probing_target(rpl_dag_t *dag)
    * if its link statistics need refresh.
    *
    * Otherwise, it picks at random between:
-   * (1) selecting the (oldest) candidate with the least RSSI measurements.
-   * (2) selecting the best parent with non-fresh link statistics.
-   * (3) selecting the least recently updated parent.
+   * (1) selecting the candidate with:
+   *     (i)   the least RSSI measurements,
+   *     (ii)  the least fresh RSSI measurements,
+   *     (iii) the highest age.
+   * (2) selecting the best parent (lowest rank) with non-fresh link statistics.
    */
 
   const struct link_stats *stats;
@@ -424,7 +426,7 @@ get_probing_target(rpl_dag_t *dag)
   /* The preferred parent needs probing. */
   if(dag->preferred_parent != NULL) {
     stats = rpl_get_parent_link_stats(dag->preferred_parent);
-    already_probed = (stats->last_probe_time > stats->last_rx_time) &&
+    already_probed = (stats->last_probe_time > stats->rx_time[0]) &&
                      rpl_parent_probe_recent(dag->preferred_parent);
     if(!rpl_pref_parent_rx_fresh(dag->preferred_parent) || (!already_probed &&
        link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
@@ -447,8 +449,8 @@ get_probing_target(rpl_dag_t *dag)
       stats = rpl_get_parent_link_stats(p);
       uint8_t p_rssi_cnt = link_stats_get_rssi_count(stats, 0);
       uint8_t p_rssi_cnt_fresh = link_stats_get_rssi_count(stats, 1);
-      already_probed = (stats->last_probe_time > stats->last_rx_time) && rpl_parent_probe_recent(p);
-      clock_time_t p_age = clock_now - MAX(stats->last_rx_time, stats->last_probe_time);
+      already_probed = (stats->last_probe_time > stats->rx_time[0]) && rpl_parent_probe_recent(p);
+      clock_time_t p_age = clock_now - MAX(stats->rx_time[0], stats->last_probe_time);
       if(!already_probed && (p_rssi_cnt < probing_target_1_rssi_cnt ||
          (p_rssi_cnt == probing_target_1_rssi_cnt && (p_rssi_cnt_fresh < probing_target_1_rssi_cnt_fresh ||
          (p_rssi_cnt_fresh == probing_target_1_rssi_cnt_fresh && p_age > probing_target_1_age))))) {
@@ -537,9 +539,9 @@ get_probing_target(rpl_dag_t *dag)
       if(p->dag == dag && stats != NULL) {
 #if RPL_DAG_MC == RPL_DAG_MC_RSSI
         if(probing_target == NULL
-           || clock_now - stats->last_rx_time > probing_target_age) {
+           || clock_now - stats->rx_time[0] > probing_target_age) {
           probing_target = p;
-          probing_target_age = clock_now - stats->last_rx_time;
+          probing_target_age = clock_now - stats->rx_time[0];
         }
 #else
         if(probing_target == NULL
@@ -592,7 +594,7 @@ handle_probing_timer(void *ptr)
              lladdr != NULL ? lladdr->u8[7] : 0x0,
              instance->urgent_probing_target != NULL ? "(urgent)" : "",
              probing_target != NULL && stats != NULL ?
-             (unsigned long)((clock_time() - stats->last_rx_time) / CLOCK_SECOND) : 0
+             (unsigned long)((clock_time() - stats->rx_time[0]) / CLOCK_SECOND) : 0
              );
 #else
     LOG_INFO("probing %u %s last tx %lu s ago\n",
@@ -612,8 +614,7 @@ handle_probing_timer(void *ptr)
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT ||
      (probing_target == instance->current_dag->preferred_parent &&
-     (link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT /*||
-     !(instance->of->parent_is_acceptable(probing_target) & 0xf0)*/)))) {
+     (link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)))) {
     rpl_schedule_probing_quick(instance);
   } else {
     rpl_schedule_probing(instance);

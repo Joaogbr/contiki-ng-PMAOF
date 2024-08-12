@@ -37,9 +37,12 @@ def analyze_results(filename):
         #End-to-end total delay = [ mean= 81.04 moe= 8.05 ] ms End-to-end total jitter = [ mean= 28.44 moe= 3.30 ] ms
         fields = lines[-2].split()
         avg_total_e2e_delay, avg_total_e2e_delay_moe, avg_total_e2e_jitter, avg_total_e2e_jitter_moe = float(fields[6]), float(fields[8]), float(fields[17]), float(fields[19])
-        #Jain's Justice Index = 0.925
+        #Jain's Justice Index: PDR = 0.925 Parent Switches = 0.925 Delay = 0.925 Jitter = 0.925
         fields = lines[-1].split()
-        justice_index = float(fields[4])
+        justice_index_pdr = float(fields[5])
+        justice_index_ps = float(fields[9])
+        justice_index_delay = float(fields[12])
+        justice_index_jitter = float(fields[15])
 
         d = {
             "no.": os.path.basename(os.path.dirname(filename)),
@@ -51,9 +54,12 @@ def analyze_results(filename):
             "avg_e2e_delay_moe": avg_total_e2e_delay_moe,
             "Jitter": avg_total_e2e_jitter,
             "jitter_moe": avg_total_e2e_jitter_moe,
-            "Justica": justice_index
+            "Justica_PDR": justice_index_pdr,
+            "Justica_PS": justice_index_ps,
+            "Justica_Delay": justice_index_delay,
+            "Justica_Jitter": justice_index_jitter
         }
-    return d, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_time_joined, justice_index
+    return d, ll_par, total_ll_queue_dropped, total_e2e_sent, total_e2e_received, avg_rpl_time_joined, justice_index_pdr, justice_index_ps, justice_index_delay, justice_index_jitter
 
 #######################################################
 # Get the margin of the confidence interval
@@ -105,7 +111,7 @@ def plot(results, metric, ylabel, ranges_list):
         pl.ylim([0, 60])
     elif metric == "Trocas":
         pl.ylim([0, 8])
-    elif metric == "Justica":
+    elif metric == "Justica_PDR" or metric == "Justica_PS" or metric == "Justica_Delay" or metric == "Justica_Jitter":
         pl.ylim([0, 1.2])
     else:
         pl.ylim(ymin=0)
@@ -137,7 +143,7 @@ def main():
     subdirs = [x[0] for x in os.walk(SIM_PATH)][1:]
     subdirs = sorted(subdirs, key=num_sort)
     output_file = os.path.join(SIM_PATH, "multisim-analysis_results.txt")
-    ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, avg_justice_index = (np.zeros(len(subdirs)) for _ in range(6))
+    ll_par, ll_queue_dropped, e2e_sent, e2e_received, avg_rpl_tj, avg_justice_index_pdr, avg_justice_index_ps, avg_justice_index_delay, avg_justice_index_jitter = (np.zeros(len(subdirs)) for _ in range(9))
 
     for subdir in subdirs:
         input_file = os.path.join(subdir, pargs.fname)
@@ -145,7 +151,7 @@ def main():
             print('The input file "{}" does not exist'.format(input_file))
             continue
         idx = subdirs.index(subdir)
-        d, ll_par[idx], ll_queue_dropped[idx], e2e_sent[idx], e2e_received[idx], avg_rpl_tj[idx], avg_justice_index[idx] = analyze_results(input_file)
+        d, ll_par[idx], ll_queue_dropped[idx], e2e_sent[idx], e2e_received[idx], avg_rpl_tj[idx], avg_justice_index_pdr[idx], avg_justice_index_ps[idx], avg_justice_index_delay[idx], avg_justice_index_jitter[idx] = analyze_results(input_file)
         results.append(d)
 
     ranges = [0, 10]
@@ -153,7 +159,10 @@ def main():
     plot(results, "Trocas", "Quantidade de trocas de pai", ranges)
     plot(results, "Atraso", "Atraso médio fim-a-fim, em ms", ranges)
     plot(results, "Jitter", "Jitter médio fim-a-fim, em ms", ranges)
-    plot(results, "Justica", "Índice de justiça do atraso", ranges)
+    plot(results, "Justica_PDR", "Índice de justiça do PDR", ranges)
+    plot(results, "Justica_PS", "Índice de justiça das trocas de pai", ranges)
+    plot(results, "Justica_Delay", "Índice de justiça do atraso", ranges)
+    plot(results, "Justica_Jitter", "Índice de justiça do jitter", ranges)
 
     if os.path.isfile(output_file):
         os.remove(output_file)
@@ -164,15 +173,15 @@ def main():
     avg_e2e_delay = [r["Atraso"] for r in results]
     avg_e2e_jitter = [r["Jitter"] for r in results]
 
-    output_stream.append("Link-layer PAR: [mean = {:.2f}/moe = {:.2f}] (total packets dropped in queue: [mean = {:.2f}/moe = {:.2f}]) End-to-end PDR: [mean = {:.2f}/moe = {:.2f}]".format(
+    output_stream.append("Link-layer PAR: [mean = {:.3f}/moe = {:.3f}] (total packets dropped in queue: [mean = {:.3f}/moe = {:.3f}]) End-to-end PDR: [mean = {:.3f}/moe = {:.3f}]".format(
         np.mean(ll_par), confint(ll_par, 0.95), np.mean(ll_queue_dropped), confint(ll_queue_dropped, 0.95), np.mean(e2e_pdr), confint(e2e_pdr, 0.95)))
-    output_stream.append("Total packets sent: [mean = {:.2f}/moe = {:.2f}] Total packets received: [mean = {:.2f}/moe = {:.2f}]".format(
+    output_stream.append("Total packets sent: [mean = {:.3f}/moe = {:.3f}] Total packets received: [mean = {:.3f}/moe = {:.3f}]".format(
         np.mean(e2e_sent), confint(e2e_sent, 0.95), np.mean(e2e_received), confint(e2e_received, 0.95)))
-    output_stream.append("Avg. no. of parent switches: [mean = {:.2f}/moe = {:.2f}] Avg. time joined: [mean = {:.2f} s/moe = {:.2f} s]".format(
+    output_stream.append("Avg. no. of parent switches: [mean = {:.3f}/moe = {:.3f}] Avg. time joined: [mean = {:.3f} s/moe = {:.3f} s]".format(
         np.mean(rpl_ps), confint(rpl_ps, 0.95), np.mean(avg_rpl_tj), confint(avg_rpl_tj, 0.95)))
-    output_stream.append("Avg. end-to-end total delay: [mean = {:.2f} ms/moe = {:.2f} ms] Avg. end-to-end total jitter: [mean = {:.2f} ms/moe = {:.2f} ms]".format(
+    output_stream.append("Avg. end-to-end total delay: [mean = {:.3f} ms/moe = {:.3f} ms] Avg. end-to-end total jitter: [mean = {:.3f} ms/moe = {:.3f} ms]".format(
         np.mean(avg_e2e_delay), confint(avg_e2e_delay, 0.95), np.mean(avg_e2e_jitter), confint(avg_e2e_jitter, 0.95)))
-    output_stream.append("Avg. Justice Index: [mean = {:.3f}/moe = {:.3f}]".format(np.mean(avg_justice_index), confint(avg_justice_index, 0.95)))
+    output_stream.append("Avg. Justice Index: PDR = [mean = {:.3f}/moe = {:.3f}, Parent Switches = [mean = {:.3f}/moe = {:.3f}, Delay = [mean = {:.3f}/moe = {:.3f}, Jitter = [mean = {:.3f}/moe = {:.3f}]".format(np.mean(avg_justice_index_pdr), confint(avg_justice_index_pdr, 0.95), np.mean(avg_justice_index_ps), confint(avg_justice_index_ps, 0.95), np.mean(avg_justice_index_delay), confint(avg_justice_index_delay, 0.95), np.mean(avg_justice_index_jitter), confint(avg_justice_index_jitter, 0.95)))
 
     print(*output_stream, sep = "\n", file = sys.stdout)
     print(*output_stream, sep = "\n", file = of)

@@ -222,15 +222,8 @@ rpl_get_parent_path_cost(rpl_parent_t *p)
   return 0xffff;
 }
 /*---------------------------------------------------------------------------*/
-/*int
-rpl_parent_tx_fresh(rpl_parent_t *p)
-{
-  const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  return link_stats_tx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
-}*/
-/*---------------------------------------------------------------------------*/
 int
-rpl_parent_rx_fresh(rpl_parent_t *p)
+rpl_parent_is_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
@@ -240,6 +233,9 @@ int
 rpl_parent_probe_recent(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
+  if(stats == NULL) {
+    return 0;
+  }
   if(stats->failed_probes > LINK_STATS_FAILED_PROBES_MAX_NUM) {
     return link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME);
   }
@@ -250,11 +246,7 @@ int
 rpl_pref_parent_rx_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  if(p->dag->instance->of->parent_is_acceptable(p)/* > 1*/) {
-    return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1) ||
-           link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
-  }
-  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 2) ||
+  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME >> 1) ||
          link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
 }
 /*---------------------------------------------------------------------------*/
@@ -288,7 +280,7 @@ rpl_parent_is_reachable(rpl_parent_t *p)
 
   /* If we don't have fresh link information, assume the parent is reachable. */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  return !(/*rpl_parent_tx_fresh(p) &&*/ rpl_parent_rx_fresh(p)) ||
+  return !rpl_parent_is_fresh(p) ||
          p->dag->instance->of->parent_has_usable_link(p);
 #else
   return !rpl_parent_is_fresh(p) ||
@@ -956,7 +948,7 @@ filter_parent(rpl_parent_t * p, rpl_dag_t *dag, int fresh_only)
   }
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  if(fresh_only && !(/*rpl_parent_tx_fresh(p) ||*/ rpl_parent_rx_fresh(p))) {
+  if(fresh_only && !rpl_parent_is_fresh(p)) {
     /* Filter out non-fresh parents if fresh_only is set. */
     return 1;
   }
@@ -995,7 +987,7 @@ best_parent(rpl_dag_t *dag, int fresh_only)
   if(dag->preferred_parent != NULL &&
      !filter_parent(dag->preferred_parent, dag, fresh_only)) {
     pp_is_acceptable = of->parent_is_acceptable(dag->preferred_parent);
-    if(pp_is_acceptable /*> 1*/) {
+    if(pp_is_acceptable) {
       // Maintain the stability of the preferred parent if performance is acceptable.
       return dag->preferred_parent;
     }
@@ -1008,12 +1000,6 @@ best_parent(rpl_dag_t *dag, int fresh_only)
     if(filter_parent(p, dag, fresh_only)) {
       continue;
     }
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    /*else if(pp_is_acceptable > 0 && p != dag->preferred_parent &&
-            of->parent_is_acceptable(p) <= pp_is_acceptable) {
-      continue;
-    }*/
-#endif
 
     /* Now we have an acceptable parent, check if it is the new best. */
     best = of->best_parent(best, p);
@@ -1031,17 +1017,9 @@ rpl_select_parent(rpl_dag_t *dag)
   if(best != NULL) {
 #if RPL_WITH_PROBING
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(/*rpl_parent_tx_fresh(best) ||*/ rpl_parent_rx_fresh(best)) {
+    if(rpl_parent_is_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
-      /*if(!rpl_parent_tx_fresh(best) || !(rpl_parent_rx_fresh(best) ||
-         rpl_parent_probe_recent(best))) {
-        // Probe the best parent shortly in order to get a fresh estimate.
-        dag->instance->urgent_probing_target = best;
-        rpl_schedule_probing_now(dag->instance);
-      } else {*/
-        // Unschedule any already scheduled urgent probing.
-        dag->instance->urgent_probing_target = NULL;
-      //}
+      dag->instance->urgent_probing_target = NULL;
 #else
     if(rpl_parent_is_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
@@ -1555,11 +1533,12 @@ rpl_process_parent_event(rpl_instance_t *instance, rpl_parent_t *p)
     rpl_remove_routes_by_nexthop(rpl_parent_get_ipaddr(p), p->dag);
   }
 
-  if(!acceptable_rank(p->dag, rpl_rank_via_parent(p))) {
+  rpl_rank_t p_rank = rpl_rank_via_parent(p);
+  if(!acceptable_rank(p->dag, p_rank)) {
     /* The candidate parent is no longer valid: the rank increase
        resulting from the choice of it as a parent would be too high. */
-    LOG_WARN("Unacceptable rank (Parent rank %u, Current min %u, MaxRankInc %u)\n",
-             (unsigned)p->rank,
+    LOG_WARN("Unacceptable rank (Parent rank %u, Rank via parent %u, Current min %u, MaxRankInc %u)\n",
+             (unsigned)p->rank, (unsigned)p_rank,
              p->dag->min_rank, p->dag->instance->max_rankinc);
     rpl_nullify_parent(p);
     if(p != instance->current_dag->preferred_parent) {

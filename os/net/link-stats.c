@@ -111,7 +111,7 @@ int
 link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time)
 {
   return (stats != NULL)
-      && clock_time() - stats->last_rx_time < exp_time;
+      && clock_time() - stats->rx_time[0] < exp_time;
 }
 #endif
 /*---------------------------------------------------------------------------*/
@@ -135,8 +135,10 @@ link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only)
     }
     if(fresh_only) {
       clock_time_t clock_now = clock_time();
-      while((count > 0) && ((clock_now - stats->rx_time[count-1]) >= FRESHNESS_EXPIRATION_TIME)) {
-        count--;
+      for(uint8_t i = count; i > 0; i--) {
+        if((clock_now - stats->rx_time[i-1]) >= (FRESHNESS_EXPIRATION_TIME * i)) {
+          count--;
+        }
       }
     }
     return count;
@@ -156,10 +158,10 @@ static uint16_t
 guess_etx_from_rssi(const struct link_stats *stats)
 {
   if(stats != NULL) {
-    if(stats->last_rssi == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
+    if(stats->rssi[0] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
       return ETX_DEFAULT * ETX_DIVISOR;
     } else {
-      const int16_t rssi_delta = fix16_to_int(stats->last_rssi) - LINK_STATS_RSSI_LOW;
+      const int16_t rssi_delta = fix16_to_int(stats->rssi[0]) - LINK_STATS_RSSI_LOW;
       const int16_t bounded_rssi_delta = BOUND(rssi_delta, 0, RSSI_DIFF);
       /* Penalty is in the range from 0 to ETX_DIVISOR */
       const uint16_t penalty = ETX_DIVISOR * bounded_rssi_delta / RSSI_DIFF;
@@ -203,8 +205,6 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
       stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
       stats->rx_time[i] = 0;
     }
-    stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-    stats->last_rx_time = 0;
     stats->last_probe_time = 0;
     stats->link_stats_metric_updated = 0xff;
   }
@@ -293,40 +293,35 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
       stats->rx_time[i] = 0;
     }
-    stats->last_rssi = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-    stats->last_rx_time = 0;
     stats->last_probe_time = 0;
     stats->link_stats_metric_updated = 0xff;
   }
 
-  if(stats->last_rssi == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
+  if(stats->rssi[0] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
     /* Update last Rx timestamp */
-    stats->last_rx_time = clock_time();
-    stats->rx_time[0] = stats->last_rx_time;
+    stats->rx_time[0] = clock_time();
 
     /* Initialize RSSI */
-    stats->last_rssi = fix16_from_int(packet_rssi);
-    stats->rssi[0] = stats->last_rssi;
+    stats->rssi[0] = fix16_from_int(packet_rssi);
 
     stats->link_stats_metric_updated |= 1;
   } else {
-    clock_time_t clock_now = clock_time();
+    fix16_t last_rssi;
+    clock_time_t last_rx_time = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
     /* Update RSSI EMAnext */
-    fix16_t diff_s_fix16 = get_seconds_from_ticks(clock_now - stats->last_rx_time, CLOCK_SECOND);
-    stats->last_rssi = diff_s_fix16 <= fix16_from_int(5*EMA_TAU) ?
-                       fix16_ema(stats->last_rssi, fix16_from_int(packet_rssi), diff_s_fix16, fix16_from_int(EMA_TAU)) :
+    fix16_t diff_s_fix16 = get_seconds_from_ticks(last_rx_time - stats->rx_time[0], CLOCK_SECOND);
+    last_rssi = diff_s_fix16 <= fix16_from_int(5*EMA_TAU) ?
+                       fix16_ema(stats->rssi[0], fix16_from_int(packet_rssi), diff_s_fix16, fix16_from_int(EMA_TAU)) :
                        fix16_from_int(packet_rssi); /* If weight is very small, do not use it */
 #else
-    stats->last_rssi = fix16_div(fix16_add(fix16_mul(stats->last_rssi, fix16_from_int(EWMA_SCALE - EWMA_ALPHA)),
+    last_rssi = fix16_div(fix16_add(fix16_mul(stats->rssi[0], fix16_from_int(EWMA_SCALE - EWMA_ALPHA)),
                        fix16_from_int(packet_rssi * EWMA_ALPHA)), fix16_from_int(EWMA_SCALE)); // If alpha == 100: no memory
 #endif
-    stats->last_rx_time = clock_now;
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(stats->rssi[0] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN) ||
-       stats->last_rx_time - stats->rx_time[0] >= STATIC_DET_TIME_THRESH ||
-       fix_abs(fix16_sub(stats->last_rssi, stats->rssi[0])) >= fix16_from_float(STATIC_DET_RSSI_THRESH)) {
+    if(last_rx_time - stats->rx_time[0] >= STATIC_DET_TIME_THRESH ||
+       fix_abs(fix16_sub(last_rssi, stats->rssi[0])) >= fix16_from_float(STATIC_DET_RSSI_THRESH)) {
       /* Update RSSI and Rx timestamp arrays */
       for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
         stats->rx_time[i] = stats->rx_time[i-1];
@@ -336,9 +331,9 @@ link_stats_input_callback(const linkaddr_t *lladdr)
         LOG_DBG_(" -> RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, fix16_to_int(stats->rssi[i]), i, stats->rx_time[i]);
       }
       /* Update last Rx timestamp */
-      stats->rx_time[0] = stats->last_rx_time;
+      stats->rx_time[0] = last_rx_time;
       /* Update RSSI EMAnext */
-      stats->rssi[0] = stats->last_rssi;
+      stats->rssi[0] = last_rssi;
 
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
@@ -431,13 +426,13 @@ link_stats_init(void)
 /*---------------------------------------------------------------------------*/
 /* Update OF link metric */
 void
-link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric/*, clock_time_t lm_time*/)
+link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t mf, fix16_t rrssi)
 {
   struct link_stats *stats;
   stats = nbr_table_get_from_lladdr(link_stats, lladdr);
   if(stats != NULL) {
-    stats->last_link_metric = link_metric;
-    //stats->last_lm_time = lm_time;
+    stats->last_mf = mf;
+    stats->last_rrssi = rrssi;
     stats->link_stats_metric_updated = 0;
   }
 }

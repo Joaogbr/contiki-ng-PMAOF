@@ -218,7 +218,7 @@ struct rpl_of {
 #endif
   uint16_t (*parent_link_metric)(rpl_parent_t *);
 #if RPL_OF_OCP == RPL_OCP_MVMTOF && RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  int (*parent_is_acceptable)(rpl_parent_t *);
+  uint8_t (*parent_is_acceptable)(rpl_parent_t *);
 #endif
   int (*parent_has_usable_link)(rpl_parent_t *);
   uint16_t (*parent_path_cost)(rpl_parent_t *);

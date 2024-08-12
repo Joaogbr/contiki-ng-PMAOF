@@ -37,7 +37,7 @@
 #include "net/linkaddr.h"
 
 /* Statistics with no update in FRESHNESS_EXPIRATION_TIMEOUT is not fresh */
-#define FRESHNESS_EXPIRATION_TIME       (8 * 60 * (clock_time_t)CLOCK_SECOND) //(10 * 60 * (clock_time_t)CLOCK_SECOND)
+#define FRESHNESS_EXPIRATION_TIME       (3 * 60 * (clock_time_t)CLOCK_SECOND)
 /* Half time for the freshness counter */
 #define FRESHNESS_HALF_LIFE             (15 * 60 * (clock_time_t)CLOCK_SECOND)
 /* Statistics are fresh if the freshness counter is FRESHNESS_TARGET or more */
@@ -149,18 +149,16 @@ struct link_packet_counter {
 /* All statistics of a given link */
 struct link_stats {
   clock_time_t last_tx_time;  /* Last Tx timestamp */
-  clock_time_t last_rx_time;  /* Last Rx timestamp */
   clock_time_t rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps */
   clock_time_t last_probe_time;  /* Last Probe (DIO/DIS) timestamp */
   //clock_time_t last_lm_time; /* Last link metric timestamp */
   uint16_t etx;               /* ETX using ETX_DIVISOR as fixed point divisor. Zero if not yet measured. */
-  fix16_t last_rssi; /* Latest RSSI (received signal strength) value. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   fix16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
   uint8_t freshness;          /* Freshness of the statistics. Zero if no packets sent yet. */
   uint8_t failed_probes;          /* Number of lost probes. */
   uint8_t link_stats_metric_updated; /* Set when values are updated */
-  fix16_t last_link_metric; /* OF calculated link metric */
-  //fix16_t last_cf; /* Correction Factor */
+  fix16_t last_mf; /* OF calculated link metric */
+  fix16_t last_rrssi; /* Remaining RSSI */
 #if LINK_STATS_ETX_FROM_PACKET_COUNT
   uint8_t tx_count;           /* Tx count, used for ETX calculation */
   uint8_t ack_count;          /* ACK count, used for ETX calculation */
@@ -197,7 +195,7 @@ void link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx);
 /* Packet input callback. Updates statistics for receptions on a given link */
 void link_stats_input_callback(const linkaddr_t *lladdr);
 /* Updates Objective Function result for a given link */
-void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t link_metric/*, clock_time_t lm_time*/);
+void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t mf, fix16_t rrssi);
 /* Updates last probing time for a given link */
 void link_stats_probe_callback(const linkaddr_t *lladdr, clock_time_t probe_time);
 

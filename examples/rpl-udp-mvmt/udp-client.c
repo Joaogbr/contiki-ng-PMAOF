@@ -22,9 +22,7 @@
 /* Avg tx rate: 996.83 B/min, avg sleep interval: 7.76 s */
 // 70 B payload -> 126 B IPv6 packet
 #define BUFSIZE 70
-#define SEND_INTERVAL		  (uint16_t) (1 * CLOCK_SECOND)
-/*#define TX_DUR          56 * ((uint32_t) (60 * CLOCK_SECOND))
-#define MAX_TX_COUNT      TX_DUR / SEND_INTERVAL*/
+#define SEND_INTERVAL		  (uint16_t) (12 * (CLOCK_SECOND >> 4))
 
 static char buf[BUFSIZE-12] = { [0 ... (BUFSIZE-13)] = '@' };
 static struct simple_udp_connection udp_conn;
@@ -78,8 +76,7 @@ PROCESS_THREAD(udp_client_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
 
     if(NETSTACK_ROUTING.node_is_reachable() &&
-       NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr) /*&&
-       tx_count <= MAX_TX_COUNT*/) {
+       NETSTACK_ROUTING.get_root_ipaddr(&dest_ipaddr)) {
 
       /* Print statistics every 10th TX */
       if(tx_count % 10 == 0) {
