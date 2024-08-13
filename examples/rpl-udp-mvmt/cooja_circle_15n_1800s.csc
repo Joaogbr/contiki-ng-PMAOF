@@ -283,7 +283,7 @@
   <plugin>
     org.contikios.cooja.plugins.ScriptRunner
     <plugin_config>
-      <scriptfile>[CONFIG_DIR]/coojalogger.js</scriptfile>
+      <scriptfile>[CONFIG_DIR]/coojalogger_circle.js</scriptfile>
       <active>true</active>
     </plugin_config>
     <bounds x="908" y="38" height="700" width="600" z="1" />
