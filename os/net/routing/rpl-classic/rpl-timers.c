@@ -442,6 +442,7 @@ get_probing_target(rpl_dag_t *dag)
   rpl_parent_t *probing_target_2 = NULL;
   rpl_rank_t probing_target_2_rank = RPL_INFINITE_RANK;
   clock_time_t clock_now = clock_time();
+  uint8_t rand_target = random_rand() % 2 == 0; // If 0, choose target 1, if 1, choose target 2.
 
   p = nbr_table_head(rpl_parents);
   while(p != NULL) {
@@ -460,11 +461,13 @@ get_probing_target(rpl_dag_t *dag)
         probing_target_1_age = p_age;
       }
 
-      rpl_rank_t p_rank = rpl_rank_via_parent(p);
-      if(!already_probed && p_rssi_cnt_fresh < LINK_STATS_MIN_RSSI_COUNT &&
-         p_rank < probing_target_2_rank) {
-        probing_target_2 = p;
-        probing_target_2_rank = p_rank;
+      if(rand_target) {
+        rpl_rank_t p_rank = rpl_rank_via_parent(p);
+        if(!already_probed && p_rssi_cnt_fresh < LINK_STATS_MIN_RSSI_COUNT &&
+           p_rank < probing_target_2_rank) {
+          probing_target_2 = p;
+          probing_target_2_rank = p_rank;
+        }
       }
 
       p = nbr_table_next(rpl_parents, p);
@@ -476,7 +479,7 @@ get_probing_target(rpl_dag_t *dag)
     return probing_target_1;
   }
 
-  return (probing_target_2 != NULL && random_rand() % 2 == 0) ? probing_target_2 : probing_target_1;
+  return probing_target_2 != NULL ? probing_target_2 : probing_target_1;
 }
 /*---------------------------------------------------------------------------*/
 #else
@@ -612,6 +615,7 @@ handle_probing_timer(void *ptr)
 
   /* Schedule next probing. */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  /* Halve the probing interval if there are neighbours with insufficient RSSI samples. */
   if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT ||
      (probing_target == instance->current_dag->preferred_parent &&
      (link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)))) {

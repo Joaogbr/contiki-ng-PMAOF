@@ -983,12 +983,12 @@ best_parent(rpl_dag_t *dag, int fresh_only)
   of = dag->instance->of;
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+  // Maintain the stability of the preferred parent if performance is acceptable.
   int pp_is_acceptable = 0;
   if(dag->preferred_parent != NULL &&
      !filter_parent(dag->preferred_parent, dag, fresh_only)) {
     pp_is_acceptable = of->parent_is_acceptable(dag->preferred_parent);
     if(pp_is_acceptable) {
-      // Maintain the stability of the preferred parent if performance is acceptable.
       return dag->preferred_parent;
     }
   }

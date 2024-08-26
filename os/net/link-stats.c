@@ -136,6 +136,7 @@ link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only)
     if(fresh_only) {
       clock_time_t clock_now = clock_time();
       for(uint8_t i = count; i > 0; i--) {
+        /* Freshness windows are proportional to the order of the samples. */
         if((clock_now - stats->rx_time[i-1]) >= (FRESHNESS_EXPIRATION_TIME * i)) {
           count--;
         }
@@ -309,7 +310,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     fix16_t last_rssi;
     clock_time_t last_rx_time = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
-    /* Update RSSI EMAnext */
+    /* Update last RSSI sample using EMAnext. */
     fix16_t diff_s_fix16 = get_seconds_from_ticks(last_rx_time - stats->rx_time[0], CLOCK_SECOND);
     last_rssi = diff_s_fix16 <= fix16_from_int(5*EMA_TAU) ?
                        fix16_ema(stats->rssi[0], fix16_from_int(packet_rssi), diff_s_fix16, fix16_from_int(EMA_TAU)) :

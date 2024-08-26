@@ -148,14 +148,19 @@ ssub_u16(uint16_t a, uint16_t b)
 static fix16_t
 get_rrssi(fix16_t last_rssi, fix16_t drssi_dt, fix16_t d2rssi_dt2)
 {
+  /* If the last RSSI value exceeds the threshold, return 0 as the link is too weak. */
   if(fix_abs(last_rssi) > fix16_from_int(ABS_RSSI_RED)) {
     return 0;
   }
 
+  /* Check if there is deceleration. */
   if(d2rssi_dt2 != 0 && ((drssi_dt >= 0) != (d2rssi_dt2 >= 0))) {
-    fix16_t tp_s = fix_abs(fix16_sdiv(drssi_dt, d2rssi_dt2));
+    fix16_t tp_s = fix_abs(fix16_sdiv(drssi_dt, d2rssi_dt2)); // Time to reach the turning point.
     fix16_t turn_pt = fix16_sadd(last_rssi, fix16_sadd(fix16_smul(drssi_dt, tp_s),
-                      fix16_smul(fix16_div(d2rssi_dt2, fix16_from_int(2)), fix16_smul(tp_s, tp_s))));
+                      fix16_smul(fix16_div(d2rssi_dt2, fix16_from_int(2)),
+                      fix16_smul(tp_s, tp_s)))); // RSSI value of the turning point.
+
+    /* If the turning point is within a valid range, use it calculate remaining RSSI. */
     if(drssi_dt >= 0 && turn_pt <= fix16_from_int(ABS_RSSI_RED - 20)) {
       return fix16_sadd(fix16_ssub(turn_pt, last_rssi),
              fix16_sadd(fix16_from_int(ABS_RSSI_RED), turn_pt));
@@ -200,6 +205,7 @@ parent_link_metric(rpl_parent_t *p)
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   if(stats != NULL) {
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+    /* Get the count of available RSSI measurements. */
     uint8_t rssi_cnt = link_stats_get_rssi_count(stats, 0);
     if(rssi_cnt > 0) {
       if(rssi_cnt > 1) {
@@ -207,34 +213,37 @@ parent_link_metric(rpl_parent_t *p)
           fix16_t drssi[LINK_STATS_RSSI_ARR_LEN-1] = {0};
           fix16_t drssi_dt[LINK_STATS_RSSI_ARR_LEN-1] = {0};
           fix16_t diff_s_fix16, mf;
+          /* If there's at least two samples, calculate first derivative of RSSI. */
           for(int i = 0; i < rssi_cnt - 1; i++) {
             drssi[i] = fix16_mul(fix16_sub(stats->rssi[i], stats->rssi[i+1]), fix16_from_int(DRSSI_SCALE));
             diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
             drssi_dt[i] = fix16_div(drssi[i], diff_s_fix16);
           }
-
+          /* Calculate MF solely based on drssi_dt for now. */
           mf = fix16_mul(drssi_dt[0], fix16_from_float(CF_ALPHA));
           fix16_t d2rssi_dt[LINK_STATS_RSSI_ARR_LEN-2] = {0};
           fix16_t d2rssi_dt2[LINK_STATS_RSSI_ARR_LEN-2] = {0};
           if(rssi_cnt > 2) {
+            /* If there's at least three samples, calculate second derivative of RSSI. */
             for(int i = 0; i < rssi_cnt - 2; i++) {
               d2rssi_dt[i] = fix16_sub(drssi_dt[i], drssi_dt[i+1]);
               diff_s_fix16 = get_seconds_from_ticks(stats->rx_time[i] - stats->rx_time[i+1], CLOCK_SECOND);
               d2rssi_dt2[i] = fix16_div(d2rssi_dt[i], diff_s_fix16);
             }
-
-            fix16_t ratio = fix16_div(d2rssi_dt2[0], drssi_dt[0] + !drssi_dt[0]);
+            /* Update MF based on d2rssi_dt2. */
             if((d2rssi_dt2[0] >= 0) == (drssi_dt[0] >= 0)) {
+              fix16_t ratio = fix16_div(d2rssi_dt2[0], drssi_dt[0] + !drssi_dt[0]);
               mf = fix16_mul(mf, fix16_add(fix16_one, fix16_log(fix16_add(fix16_one, ratio))));
             } else {
               if(fix_abs(d2rssi_dt2[0]) >= fix_abs(drssi_dt[0])) {
                 mf = fix16_mul(d2rssi_dt2[0], fix16_from_float(CF_ALPHA));
-              } else if(fix_abs(ratio) > fix16_from_float(CF_BETA)) {
+              } else if(fix_abs(d2rssi_dt2[0]) > fix16_mul(fix_abs(drssi_dt[0]), fix16_from_float(CF_BETA))) {
                 mf = -mf;
               }
             }
           }
 
+          /* Link cost is a function of MF and RRSSI. */
           fix16_t rrssi = get_rrssi(stats->rssi[0], drssi_dt[0], d2rssi_dt2[0]);
           link_stats_metric_update_callback(rpl_get_parent_lladdr(p), mf, rrssi);
           return (uint16_t) MIN(fix16_to_int(fix16_add(fix_abs(mf),
@@ -243,7 +252,7 @@ parent_link_metric(rpl_parent_t *p)
         return (uint16_t) MIN(fix16_to_int(fix16_add(fix_abs(stats->last_mf),
                fix16_sub(fix16_from_int(4*ABS_RSSI_RED), stats->last_rrssi))), 0xffff);
       }
-      /* Punish a bit if only one RSSI reading is available */
+      /* Punish a bit if only one RSSI reading is available. */
       return (uint16_t) abs(LINK_COST_LOW_RSSI_COUNT);
     }
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
@@ -354,7 +363,8 @@ parent_is_acceptable(rpl_parent_t *p)
   if(stats == NULL) {
     return 0;
   }
-
+  
+  /* Parent is acceptable if path cost, MF and RRSSI do not exceed the thresholds. */
   return p_cost <= PATH_COST_RED * p_hc &&
          stats->last_mf > fix16_from_int(MF_LL_RED) &&
          stats->last_mf <= fix16_from_int(MF_UL_RED) &&
