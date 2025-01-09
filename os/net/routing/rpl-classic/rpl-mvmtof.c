@@ -58,21 +58,85 @@
 #define LOG_LEVEL LOG_LEVEL_RPL
 
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#ifdef MVMTOF_CONF_DRSSI_SCALE
+#define DRSSI_SCALE         MVMTOF_CONF_DRSSI_SCALE
+#else /* MVMTOF_CONF_DRSSI_SCALE */
 #define DRSSI_SCALE         (uint16_t)100
-#define MAX_LINK_METRIC     20*DRSSI_SCALE
-#define PARENT_SWITCH_THRESHOLD DRSSI_SCALE
-#define MAX_PATH_COST       320*DRSSI_SCALE
-#define CF_ALPHA            25.0f /* Correction factor that multiplies MF */
-#define CF_BETA             0.25f /* Determines the point at which deceleration will impact MF */
-#define MAX_ABS_RSSI        94 /* dBm */
+#endif /* MVMTOF_CONF_DRSSI_SCALE */
 
-#define PATH_COST_RED                   20*DRSSI_SCALE /* Max acceptable path cost */
-#define MF_LL_RED                       -4*((int16_t)DRSSI_SCALE) /* Min acceptable MF */
-#define MF_UL_RED                       8*DRSSI_SCALE /* Max acceptable MF */
-#define ABS_RSSI_RED                    93 /* Max acceptable absolute RSSI */
-#define RRSSI_RED                       60 /* Min acceptable RRSSI */
+#ifdef MVMTOF_CONF_MAX_LINK_METRIC
+#define MAX_LINK_METRIC         MVMTOF_CONF_MAX_LINK_METRIC
+#else /* MVMTOF_CONF_MAX_LINK_METRIC */
+#define MAX_LINK_METRIC         20*DRSSI_SCALE
+#endif /* MVMTOF_CONF_MAX_LINK_METRIC */
 
-#define LINK_COST_LOW_RSSI_COUNT              MF_LL_RED
+#ifdef MVMTOF_CONF_PARENT_SWITCH_THRESHOLD
+#define PARENT_SWITCH_THRESHOLD         MVMTOF_CONF_PARENT_SWITCH_THRESHOLD
+#else /* MVMTOF_CONF_PARENT_SWITCH_THRESHOLD */
+#define PARENT_SWITCH_THRESHOLD         DRSSI_SCALE
+#endif /* MVMTOF_CONF_PARENT_SWITCH_THRESHOLD */
+
+#ifdef MVMTOF_CONF_MAX_PATH_COST
+#define MAX_PATH_COST         MVMTOF_CONF_MAX_PATH_COST
+#else /* MVMTOF_CONF_MAX_PATH_COST */
+#define MAX_PATH_COST         320*DRSSI_SCALE
+#endif /* MVMTOF_CONF_MAX_PATH_COST */
+
+#ifdef MVMTOF_CONF_CF_ALPHA
+#define CF_ALPHA         MVMTOF_CONF_CF_ALPHA
+#else /* MVMTOF_CONF_CF_ALPHA */
+#define CF_ALPHA         25.0f /* Correction factor that multiplies MF */
+#endif /* MVMTOF_CONF_CF_ALPHA */
+
+#ifdef MVMTOF_CONF_CF_BETA
+#define CF_BETA         MVMTOF_CONF_CF_BETA
+#else /* MVMTOF_CONF_CF_BETA */
+#define CF_BETA         0.25f /* Determines the point at which deceleration will impact MF */
+#endif /* MVMTOF_CONF_CF_BETA */
+
+#ifdef MVMTOF_CONF_MAX_ABS_RSSI
+#define MAX_ABS_RSSI         MVMTOF_CONF_MAX_ABS_RSSI
+#else /* MVMTOF_CONF_MAX_ABS_RSSI */
+#define MAX_ABS_RSSI         94 /* dBm */
+#endif /* MVMTOF_CONF_MAX_ABS_RSSI */
+
+
+#ifdef MVMTOF_CONF_PATH_COST_RED
+#define PATH_COST_RED         MVMTOF_CONF_PATH_COST_RED
+#else /* MVMTOF_CONF_PATH_COST_RED */
+#define PATH_COST_RED         20*DRSSI_SCALE /* Max acceptable path cost */
+#endif /* MVMTOF_CONF_PATH_COST_RED */
+
+#ifdef MVMTOF_CONF_MF_LL_RED
+#define MF_LL_RED         MVMTOF_CONF_MF_LL_RED
+#else /* MVMTOF_CONF_MF_LL_RED */
+#define MF_LL_RED         -4*((int16_t)DRSSI_SCALE) /* Min acceptable MF */
+#endif /* MVMTOF_CONF_MF_LL_RED */
+
+#ifdef MVMTOF_CONF_MF_UL_RED
+#define MF_UL_RED         MVMTOF_CONF_MF_UL_RED
+#else /* MVMTOF_CONF_MF_UL_RED */
+#define MF_UL_RED         8*DRSSI_SCALE /* Max acceptable MF */
+#endif /* MVMTOF_CONF_MF_UL_RED */
+
+#ifdef MVMTOF_CONF_ABS_RSSI_RED
+#define ABS_RSSI_RED         MVMTOF_CONF_ABS_RSSI_RED
+#else /* MVMTOF_CONF_ABS_RSSI_RED */
+#define ABS_RSSI_RED         93 /* Max acceptable absolute RSSI */
+#endif /* MVMTOF_CONF_ABS_RSSI_RED */
+
+#ifdef MVMTOF_CONF_RRSSI_RED
+#define RRSSI_RED         MVMTOF_CONF_RRSSI_RED
+#else /* MVMTOF_CONF_RRSSI_RED */
+#define RRSSI_RED         60 /* Min acceptable RRSSI */
+#endif /* MVMTOF_CONF_RRSSI_RED */
+
+
+#ifdef MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT
+#define LINK_COST_LOW_RSSI_COUNT         MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT
+#else /* MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT */
+#define LINK_COST_LOW_RSSI_COUNT         MF_LL_RED
+#endif /* MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT */
 
 #elif RPL_DAG_MC == RPL_DAG_MC_RSSI
 #define MAX_LINK_METRIC     1024 /* dBm */
@@ -363,7 +427,7 @@ parent_is_acceptable(rpl_parent_t *p)
   if(stats == NULL) {
     return 0;
   }
-  
+
   /* Parent is acceptable if path cost, MF and RRSSI do not exceed the thresholds. */
   return p_cost <= PATH_COST_RED * p_hc &&
          stats->last_mf > fix16_from_int(MF_LL_RED) &&
