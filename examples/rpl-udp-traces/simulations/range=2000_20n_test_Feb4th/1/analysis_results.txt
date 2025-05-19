@@ -1,0 +1,306 @@
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:1 at 4.508 seconds
+Node 11 joined RPL DAG through parent fe80::c30c:0:0:1 at 4.508 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:1 at 4.509 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:1 at 4.509 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:b at 7.469 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:b at 7.47 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:b at 7.47 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:b at 7.47 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:3 at 7.606 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:3 at 7.644 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:1 at 12.595 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:1 at 12.597 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:3 at 13.09 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:f at 15.242 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:7 at 16.275 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:7 at 16.28 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:7 at 16.28 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:13 at 21.755 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:d at 22.087 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 29.012 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:11 at 31.196 seconds
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:11 at 31.196 seconds
+Node 8 joined RPL DAG through parent fe80::c30c:0:0:1 at 33.264 seconds
+Node 6 joined RPL DAG through parent fe80::c30c:0:0:1 at 33.264 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:1 at 33.304 seconds
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:1 at 33.306 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:15 at 33.875 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:d at 33.995 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:d at 34.034 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:2 at 34.476 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:b at 34.664 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:b at 34.704 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:b at 34.721 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:5 at 34.877 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:7 at 34.976 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:7 at 35.186 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:c at 37.569 seconds
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:7 at 39.484 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:1 at 40.334 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:1 at 40.387 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:13 at 40.575 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:d at 41.405 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:b at 52.051 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:3 at 54.554 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:b at 57.503 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:3 at 57.528 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:14 at 64.047 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:10 at 68.121 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:7 at 71.704 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:3 at 76.532 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:b at 127.21 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:1 at 139.648 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:1 at 139.662 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:14 at 163.91 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 173.668 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:1 at 184.412 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:3 at 210.166 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:7 at 221.109 seconds
+Node 10 joined RPL DAG through parent fe80::c30c:0:0:c at 221.308 seconds
+Node 10 joined RPL DAG through parent fe80::c30c:0:0:14 at 243.585 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 250.552 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:7 at 258.896 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:11 at 278.521 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:14 at 307.886 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:7 at 317.486 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:14 at 340.244 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:1 at 362.535 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:10 at 387.958 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:7 at 423.861 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:9 at 424.343 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:11 at 469.229 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:10 at 469.233 seconds
+Node 10 joined RPL DAG through parent fe80::c30c:0:0:11 at 470.649 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:1 at 536.779 seconds
+Node 10 joined RPL DAG through parent fe80::c30c:0:0:e at 541.022 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:11 at 545.469 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:e at 571.037 seconds
+WARNING: Application message with seqnum = 362 already received. Must be duplicate
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:e at 603.935 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:3 at 612.435 seconds
+Node 11 joined RPL DAG through parent fe80::c30c:0:0:6 at 620.543 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:14 at 649.356 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:10 at 701.799 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:1 at 703.852 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:f at 711.129 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:1 at 734.932 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:13 at 753.177 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:e at 766.301 seconds
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:8 at 771.93 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:11 at 772.291 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:2 at 774.681 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:13 at 777.14 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:3 at 785.578 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:15 at 802.926 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:13 at 816.079 seconds
+Node 6 joined RPL DAG through parent fe80::c30c:0:0:11 at 816.456 seconds
+Node 11 switched to NULL parent at 817.051 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:13 at 819.689 seconds
+Node 11 joined RPL DAG through parent fe80::c30c:0:0:1 at 820.54 seconds
+Node 6 joined RPL DAG through parent fe80::c30c:0:0:1 at 820.686 seconds
+WARNING: Application message with seqnum = 688 already received. Must be duplicate
+Node 2 joined RPL DAG through parent fe80::c30c:0:0:1 at 820.922 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:8 at 821.196 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:8 at 828.885 seconds
+Node 10 joined RPL DAG through parent fe80::c30c:0:0:1 at 830.378 seconds
+WARNING: Application message with seqnum = 717 already received. Must be duplicate
+WARNING: Application message with seqnum = 742 already received. Must be duplicate
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:13 at 938.118 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:8 at 998.108 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:b at 1000.92 seconds
+Node 6 joined RPL DAG through parent fe80::c30c:0:0:8 at 1001.469 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:3 at 1003.904 seconds
+Node 21 switched to NULL parent at 1004.654 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:1 at 1004.904 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:8 at 1009.907 seconds
+Node 17 switched to NULL parent at 1010.976 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 1011.427 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:8 at 1026.101 seconds
+WARNING: Application message with seqnum = 795 already received. Must be duplicate
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:a at 1033.187 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:f at 1045.899 seconds
+Node 19 switched to NULL parent at 1045.917 seconds
+Node 12 switched to NULL parent at 1046.296 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:a at 1049.527 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:2 at 1053.986 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:a at 1054.549 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:e at 1074.345 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:e at 1079.877 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:8 at 1104.805 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:1 at 1163.805 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:b at 1174.867 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:13 at 1190.409 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 1227.475 seconds
+Node 6 joined RPL DAG through parent fe80::c30c:0:0:1 at 1286.152 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:1 at 1291.779 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:1 at 1303.687 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:3 at 1304.174 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:1 at 1340.885 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:15 at 1354.861 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:e at 1367.104 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:5 at 1370.359 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:15 at 1450.327 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:7 at 1467.289 seconds
+WARNING: Application message with seqnum = 1351 already received. Must be duplicate
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:6 at 1523.98 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:12 at 1531.847 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:a at 1537.789 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:6 at 1537.864 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:f at 1541.201 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:8 at 1545.04 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:1 at 1545.857 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:1 at 1618.669 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:10 at 1630.366 seconds
+WARNING: Application message with seqnum = 1514 already received. Must be duplicate
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:13 at 1728.355 seconds
+Node 12 switched to NULL parent at 1728.374 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:13 at 1734.651 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:c at 1742.842 seconds
+Node 19 switched to NULL parent at 1742.863 seconds
+Node 12 switched to NULL parent at 1743.639 seconds
+Node 9 joined RPL DAG through parent fe80::c30c:0:0:1 at 1743.82 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:11 at 1752.306 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:6 at 1754.972 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:13 at 1755.74 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:b at 1774.473 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:11 at 1785.783 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:b at 1805.582 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:1 at 1822.02 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:e at 1825.632 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:8 at 1854.552 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:1 at 1872.428 seconds
+WARNING: Application message with seqnum = 1723 already received. Must be duplicate
+WARNING: Application message with seqnum = 1737 already received. Must be duplicate
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:10 at 1889.816 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:12 at 1957.96 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:12 at 1960.866 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:e at 1961.058 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:9 at 1990.394 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:14 at 2029.155 seconds
+Node 21 switched to NULL parent at 2032.694 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:f at 2035.984 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:8 at 2036.195 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:3 at 2037.582 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:9 at 2043.027 seconds
+WARNING: Application message with seqnum = 1891 already received. Must be duplicate
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:2 at 2055.332 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:8 at 2080.378 seconds
+WARNING: Application message with seqnum = 1935 already received. Must be duplicate
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:8 at 2090.23 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:1 at 2145.223 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:4 at 2147.171 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:15 at 2194.367 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:1 at 2231.753 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:8 at 2251.485 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:1 at 2251.516 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:15 at 2270.851 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:4 at 2333.065 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:e at 2372.401 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 2395.549 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:9 at 2408.58 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:8 at 2410.463 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:9 at 2413.149 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:6 at 2427.064 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:12 at 2431.395 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:2 at 2436.946 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:4 at 2448.129 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 2453.663 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:15 at 2457.848 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:11 at 2465.018 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:14 at 2505.72 seconds
+Node 15 switched to NULL parent at 2509.876 seconds
+WARNING: Application message with seqnum = 2354 already received. Must be duplicate
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:15 at 2510.59 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:8 at 2522.457 seconds
+WARNING: Application message with seqnum = 2374 already received. Must be duplicate
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:8 at 2563.534 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:8 at 2586.011 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:8 at 2597.075 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:d at 2619.311 seconds
+Node 7 switched to NULL parent at 2633.344 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:8 at 2635.515 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:8 at 2636.647 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:a at 2636.753 seconds
+WARNING: Application message with seqnum = 2483 already received. Must be duplicate
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:8 at 2661.562 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:a at 2702.389 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:a at 2730.689 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:a at 2752.146 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:e at 2777.858 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:e at 2808.286 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:d at 2826.358 seconds
+Node 17 joined RPL DAG through parent fe80::c30c:0:0:1 at 2830.837 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:11 at 2837.289 seconds
+WARNING: Application message with seqnum = 2693 already received. Must be duplicate
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:1 at 2858.579 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:d at 2874.852 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:3 at 2877.498 seconds
+WARNING: Application message with seqnum = 2712 already received. Must be duplicate
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:3 at 2908.371 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:11 at 2922.256 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:7 at 2928.351 seconds
+Node 15 switched to NULL parent at 2928.369 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:14 at 2932.325 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:6 at 2932.344 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:7 at 2941.811 seconds
+Node 20 joined RPL DAG through parent fe80::c30c:0:0:1 at 2967.0 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:12 at 2971.03 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:11 at 2994.968 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:2 at 3017.527 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:1 at 3053.072 seconds
+Node 14 joined RPL DAG through parent fe80::c30c:0:0:1 at 3057.163 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:9 at 3057.555 seconds
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:1 at 3060.426 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:11 at 3063.11 seconds
+Node 18 switched to NULL parent at 3065.57 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:3 at 3068.86 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:1 at 3069.305 seconds
+WARNING: Application message with seqnum = 2914 already received. Must be duplicate
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:9 at 3077.517 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:3 at 3077.718 seconds
+Node 7 joined RPL DAG through parent fe80::c30c:0:0:b at 3089.734 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:b at 3089.895 seconds
+WARNING: Application message with seqnum = 2924 already received. Must be duplicate
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:3 at 3137.205 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:9 at 3145.18 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:a at 3163.328 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:9 at 3174.912 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:9 at 3185.916 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:b at 3224.872 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:b at 3245.04 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:9 at 3260.086 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:a at 3262.244 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:a at 3297.795 seconds
+Node 18 joined RPL DAG through parent fe80::c30c:0:0:1 at 3298.372 seconds
+Node 16 joined RPL DAG through parent fe80::c30c:0:0:1 at 3298.673 seconds
+Node 4 switched to NULL parent at 3303.192 seconds
+Node 4 joined RPL DAG through parent fe80::c30c:0:0:1 at 3306.337 seconds
+WARNING: Application message with seqnum = 3140 already received. Must be duplicate
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:e at 3308.304 seconds
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:4 at 3308.736 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:9 at 3314.994 seconds
+Node 12 joined RPL DAG through parent fe80::c30c:0:0:11 at 3331.427 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:a at 3343.452 seconds
+Node 11 joined RPL DAG through parent fe80::c30c:0:0:4 at 3371.596 seconds
+Node 19 joined RPL DAG through parent fe80::c30c:0:0:12 at 3375.399 seconds
+Node 13 switched to NULL parent at 3400.688 seconds
+Node 13 joined RPL DAG through parent fe80::c30c:0:0:11 at 3403.636 seconds
+Node 15 joined RPL DAG through parent fe80::c30c:0:0:8 at 3404.863 seconds
+WARNING: Application message with seqnum = 3213 already received. Must be duplicate
+WARNING: Application message with seqnum = 3240 already received. Must be duplicate
+WARNING: Application message with seqnum = 3256 already received. Must be duplicate
+Node 21 joined RPL DAG through parent fe80::c30c:0:0:a at 3438.604 seconds
+Node 11 joined RPL DAG through parent fe80::c30c:0:0:1 at 3447.16 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:4 at 3488.44 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:e at 3497.413 seconds
+WARNING: Application message with seqnum = 3333 already received. Must be duplicate
+Node 5 joined RPL DAG through parent fe80::c30c:0:0:11 at 3508.447 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:12 at 3534.394 seconds
+Node 3 switched to NULL parent at 3534.414 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:14 at 3592.381 seconds
+Node 3 joined RPL DAG through parent fe80::c30c:0:0:15 at 3598.382 seconds
+Link-layer PAR = 0.000 (total of 0 packets dropped in queue) End-to-end PDR = [ mean= 83.514 std= 0.000 ]
+Total packets sent = 68278 Total packets received = 57022
+No. of parent switches = [ mean= 13.900 std= 8.871 ] Avg. time joined = 3560.134 s
+End-to-end total delay = [ mean= 284.244 std= 172.495 ] ms End-to-end total jitter = [ mean= 189.655 std= 130.941 ] ms
+Jain's Justice Index: PDR = 0.963 Parent Switches = 0.711 Delay = 0.731 Jitter = 0.677
