@@ -126,25 +126,25 @@ link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time)
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
 /* Are the receptions fresh? */
 uint8_t
-link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only)
+link_stats_get_rssi_count(const fix16_t rssi_arr[], const clock_time_t rx_time_arr[], int fresh_only)
 {
-  if(stats != NULL) {
-    uint8_t count = LINK_STATS_RSSI_ARR_LEN;
-    while((count > 0) && (stats->rssi[count-1] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN))) {
-      count--;
-    }
-    if(fresh_only) {
-      clock_time_t clock_now = clock_time();
-      for(uint8_t i = count; i > 0; i--) {
-        /* Freshness windows are proportional to the order of the samples. */
-        if((clock_now - stats->rx_time[i-1]) >= (FRESHNESS_EXPIRATION_TIME * i)) {
-          count--;
-        }
+  /* type = 0 -> get no. of measurements
+   * type = 1 -> get no. of fresh measurements
+   */
+  uint8_t count = LINK_STATS_RSSI_ARR_LEN;
+  while((count > 0) && (rssi_arr[count-1] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN))) {
+    count--;
+  }
+  if(fresh_only) {
+    clock_time_t clock_now = clock_time();
+    for(uint8_t i = count; i > 0; i--) {
+      /* Freshness windows are proportional to the order of the samples. */
+      if((clock_now - rx_time_arr[i-1]) >= (FRESHNESS_EXPIRATION_TIME * i)) {
+        count--;
       }
     }
-    return count;
   }
-  return 0;
+  return count;
 }
 #endif
 /*---------------------------------------------------------------------------*/
@@ -175,6 +175,22 @@ guess_etx_from_rssi(const struct link_stats *stats)
 }
 #endif /* LINK_STATS_INIT_ETX_FROM_RSSI */
 /*---------------------------------------------------------------------------*/
+/* Initialize rssi values from link_stats stats */
+static void initialize_rssi_stats(struct link_stats *stats)
+{
+  for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
+    stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
+    stats->rx_time[i] = 0;
+    stats->nbr_rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
+    stats->nbr_rx_time[i] = 0;
+  }
+  stats->last_ssv = fix16_minimum;
+  stats->last_ssr = 0;
+  stats->last_rx_time = 0;
+  stats->last_probe_time = 0;
+  stats->link_stats_metric_updated = 0xff;
+}
+/*---------------------------------------------------------------------------*/
 /* Packet sent callback. Updates stats for transmissions to lladdr */
 void
 link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
@@ -202,12 +218,7 @@ link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx)
     if(stats == NULL) {
       return; /* No space left, return */
     }
-    for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
-      stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-      stats->rx_time[i] = 0;
-    }
-    stats->last_probe_time = 0;
-    stats->link_stats_metric_updated = 0xff;
+    initialize_rssi_stats(stats);
   }
 
   if(status == MAC_TX_QUEUE_FULL) {
@@ -290,12 +301,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     if(stats == NULL) {
       return; /* No space left, return */
     }
-    for(uint8_t i = 0; i < LINK_STATS_RSSI_ARR_LEN; i++) {
-      stats->rssi[i] = fix16_from_int(LINK_STATS_RSSI_UNKNOWN);
-      stats->rx_time[i] = 0;
-    }
-    stats->last_probe_time = 0;
-    stats->link_stats_metric_updated = 0xff;
+    initialize_rssi_stats(stats);
   }
 
   if(stats->rssi[0] == fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
@@ -304,8 +310,6 @@ link_stats_input_callback(const linkaddr_t *lladdr)
 
     /* Initialize RSSI */
     stats->rssi[0] = fix16_from_int(packet_rssi);
-
-    stats->link_stats_metric_updated |= 1;
   } else {
     fix16_t last_rssi;
     clock_time_t last_rx_time = clock_time();
@@ -316,7 +320,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
                        fix16_ema(stats->rssi[0], fix16_from_int(packet_rssi), diff_s_fix16, fix16_from_int(EMA_TAU)) :
                        fix16_from_int(packet_rssi); /* If weight is very small, do not use it */
 #else
-    last_rssi = fix16_div(fix16_add(fix16_mul(stats->rssi[0], fix16_from_int(EWMA_SCALE - EWMA_ALPHA)),
+    last_rssi = fix16_div(fix16_add(stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA),
                        fix16_from_int(packet_rssi * EWMA_ALPHA)), fix16_from_int(EWMA_SCALE)); // If alpha == 100: no memory
 #endif
 
@@ -339,11 +343,11 @@ link_stats_input_callback(const linkaddr_t *lladdr)
       LOG_DBG("From: ");
       LOG_DBG_LLADDR(lladdr);
       LOG_DBG_(" -> RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->rssi[0]), stats->rx_time[0]);
-
-      stats->link_stats_metric_updated |= 1;
     }
 #endif
   }
+
+  stats->link_stats_metric_updated |= 0x0f;
 
   stats->failed_probes = 0;
 
@@ -427,13 +431,14 @@ link_stats_init(void)
 /*---------------------------------------------------------------------------*/
 /* Update OF link metric */
 void
-link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t mf, fix16_t rrssi)
+link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t ssv, fix16_t ssr, clock_time_t rx_time)
 {
   struct link_stats *stats;
   stats = nbr_table_get_from_lladdr(link_stats, lladdr);
   if(stats != NULL) {
-    stats->last_mf = mf;
-    stats->last_rrssi = rrssi;
+    stats->last_ssv = ssv;
+    stats->last_ssr = ssr;
+    stats->last_rx_time = rx_time;
     stats->link_stats_metric_updated = 0;
   }
 }
@@ -447,5 +452,49 @@ link_stats_probe_callback(const linkaddr_t *lladdr, clock_time_t probe_time)
   if(stats != NULL) {
     stats->last_probe_time = probe_time;
     stats->failed_probes++;
+  }
+}
+/*---------------------------------------------------------------------------*/
+/* Update neighbor RSSI */
+void
+link_stats_nbr_rssi_callback(const linkaddr_t *lladdr, fix16_t par_rssi, clock_time_t time_since)
+{
+  struct link_stats *stats;
+  stats = nbr_table_get_from_lladdr(link_stats, lladdr);
+  if(stats == NULL) {
+    /* Add the neighbor */
+    stats = nbr_table_add_lladdr(link_stats, lladdr, NBR_TABLE_REASON_LINK_STATS, NULL);
+    if(stats == NULL) {
+      return; /* No space left, return */
+    }
+    initialize_rssi_stats(stats);
+  }
+
+  if(par_rssi != fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
+    clock_time_t est_rx_time = clock_time() - time_since;
+    if(stats->nbr_rssi[0] == par_rssi &&
+       est_rx_time < stats->nbr_rx_time[0] + CLOCK_SECOND &&
+       est_rx_time > stats->nbr_rx_time[0] - CLOCK_SECOND) {
+      LOG_DBG("Duplicate Nbr RSSI ignored\n");
+      return;
+    }
+
+    for(uint8_t i = (LINK_STATS_RSSI_ARR_LEN - 1); i > 0; i--) {
+      stats->nbr_rx_time[i] = stats->nbr_rx_time[i-1];
+      stats->nbr_rssi[i] = stats->nbr_rssi[i-1];
+      LOG_DBG("From: ");
+      LOG_DBG_LLADDR(lladdr);
+      LOG_DBG_(" -> Nbr RSSI pos %u: %d, at timestamp pos %u: %lu\n", i, fix16_to_int(stats->nbr_rssi[i]), i, stats->nbr_rx_time[i]);
+    }
+    /* Update last Rx timestamp */
+    stats->nbr_rssi[0] = par_rssi;
+    /* Update RSSI EMAnext */
+    stats->nbr_rx_time[0] = est_rx_time;
+
+    LOG_DBG("From: ");
+    LOG_DBG_LLADDR(lladdr);
+    LOG_DBG_(" -> Nbr RSSI pos 0: %d, at timestamp pos 0: %lu\n", fix16_to_int(stats->nbr_rssi[0]), stats->nbr_rx_time[0]);
+
+    stats->link_stats_metric_updated |= 0xf0;
   }
 }

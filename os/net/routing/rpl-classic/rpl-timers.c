@@ -429,7 +429,7 @@ get_probing_target(rpl_dag_t *dag)
     already_probed = (stats->last_probe_time > stats->rx_time[0]) &&
                      rpl_parent_probe_recent(dag->preferred_parent);
     if(!rpl_pref_parent_rx_fresh(dag->preferred_parent) || (!already_probed &&
-       link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
+       link_stats_get_rssi_count(stats->rssi, stats->rx_time, 1) < LINK_STATS_MIN_RSSI_COUNT)) {
       return dag->preferred_parent;
     }
   }
@@ -448,8 +448,8 @@ get_probing_target(rpl_dag_t *dag)
   while(p != NULL) {
     if(p->dag == dag) {
       stats = rpl_get_parent_link_stats(p);
-      uint8_t p_rssi_cnt = link_stats_get_rssi_count(stats, 0);
-      uint8_t p_rssi_cnt_fresh = link_stats_get_rssi_count(stats, 1);
+      uint8_t p_rssi_cnt = link_stats_get_rssi_count(stats->rssi, stats->rx_time, 0);
+      uint8_t p_rssi_cnt_fresh = link_stats_get_rssi_count(stats->rssi, stats->rx_time, 1);
       already_probed = (stats->last_probe_time > stats->rx_time[0]) && rpl_parent_probe_recent(p);
       clock_time_t p_age = clock_now - MAX(stats->rx_time[0], stats->last_probe_time);
       if(!already_probed && (p_rssi_cnt < probing_target_1_rssi_cnt ||
@@ -616,9 +616,9 @@ handle_probing_timer(void *ptr)
   /* Schedule next probing. */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   /* Halve the probing interval if there are neighbours with insufficient RSSI samples. */
-  if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats, 0) < LINK_STATS_MIN_RSSI_COUNT ||
+  if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats->rssi, stats->rx_time, 0) < LINK_STATS_MIN_RSSI_COUNT ||
      (probing_target == instance->current_dag->preferred_parent &&
-     (link_stats_get_rssi_count(stats, 1) < LINK_STATS_MIN_RSSI_COUNT)))) {
+     (link_stats_get_rssi_count(stats->rssi, stats->rx_time, 1) < LINK_STATS_MIN_RSSI_COUNT)))) {
     rpl_schedule_probing_quick(instance);
   } else {
     rpl_schedule_probing(instance);

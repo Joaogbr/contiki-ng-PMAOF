@@ -1760,6 +1760,8 @@ rpl_process_dio(uip_ipaddr_t *from, rpl_dio_t *dio)
   /* Parent info has been updated, trigger rank recalculation. */
   p->flags |= RPL_PARENT_FLAG_UPDATED;
 
+  link_stats_nbr_rssi_callback(rpl_get_parent_lladdr(p), dio->mc.obj.movfac.par_rssi, dio->mc.obj.movfac.time_since);
+
   LOG_INFO("preferred DAG ");
   LOG_INFO_6ADDR(&instance->current_dag->dag_id);
   LOG_INFO_(", rank %u, min_rank %u, ",

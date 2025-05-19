@@ -154,7 +154,7 @@ def main():
         d, ll_par[idx], ll_queue_dropped[idx], e2e_sent[idx], e2e_received[idx], avg_rpl_tj[idx], avg_justice_index_pdr[idx], avg_justice_index_ps[idx], avg_justice_index_delay[idx], avg_justice_index_jitter[idx] = analyze_results(input_file)
         results.append(d)
 
-    ranges = [0, 10]
+    ranges = [0, 40]
     plot(results, "PDR", "PDR, em porcentagem", ranges)
     plot(results, "Trocas", "Quantidade de trocas de pai", ranges)
     plot(results, "Atraso", "Atraso médio fim-a-fim, em ms", ranges)

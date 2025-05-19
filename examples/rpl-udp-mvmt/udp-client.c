@@ -22,7 +22,7 @@
 /* Avg tx rate: 996.83 B/min, avg sleep interval: 7.76 s */
 // 70 B payload -> 126 B IPv6 packet
 #define BUFSIZE 70
-#define SEND_INTERVAL		  (uint16_t) (12 * (CLOCK_SECOND >> 4))
+#define SEND_INTERVAL		  (uint16_t) (CLOCK_SECOND)
 
 static char buf[BUFSIZE-12] = { [0 ... (BUFSIZE-13)] = '@' };
 static struct simple_udp_connection udp_conn;

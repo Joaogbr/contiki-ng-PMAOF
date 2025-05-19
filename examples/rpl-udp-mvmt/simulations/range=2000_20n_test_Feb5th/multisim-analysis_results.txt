@@ -1,0 +1,5 @@
+Link-layer PAR: [mean = 0.000/moe = 0.000] (total packets dropped in queue: [mean = 0.000/moe = 0.000]) End-to-end PDR: [mean = 84.697/moe = 0.448]
+Total packets sent: [mean = 68438.075/moe = 21.299] Total packets received: [mean = 57964.525/moe = 301.770]
+Avg. no. of parent switches: [mean = 14.984/moe = 0.375] Avg. time joined: [mean = 3568.510 s/moe = 1.286 s]
+Avg. end-to-end total delay: [mean = 260.270 ms/moe = 10.728 ms] Avg. end-to-end total jitter: [mean = 226.982 ms/moe = 16.693 ms]
+Avg. Justice Index: PDR = [mean = 0.982/moe = 0.002, Parent Switches = [mean = 0.805/moe = 0.009, Delay = [mean = 0.855/moe = 0.013, Jitter = [mean = 0.744/moe = 0.024]

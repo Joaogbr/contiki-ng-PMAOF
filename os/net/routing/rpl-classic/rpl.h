@@ -98,7 +98,9 @@ struct rpl_metric_object_energy {
 
 struct rpl_metric_object_movfac {
   uint8_t hc;
-  uint16_t mf;
+  uint16_t ssv;
+  uint32_t par_rssi;
+  clock_time_t time_since;
 };
 
 /* Logical representation of a DAG Metric Container. */

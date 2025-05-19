@@ -38,6 +38,11 @@ extern "C"
 
 typedef int32_t fix16_t;
 
+typedef struct {
+  int8_t integer;   // 8-bit integer part
+  uint16_t fraction; // 16-bit fractional part
+} fix8i_t;
+
 static const fix16_t FOUR_DIV_PI  = 0x145F3;            /*!< Fix16 value of 4/PI */
 static const fix16_t _FOUR_DIV_PI2 = 0xFFFF9840;        /*!< Fix16 value of -4/PI² */
 static const fix16_t X4_CORRECTION_COMPONENT = 0x399A; 	/*!< Fix16 value of 0.225 */
@@ -265,6 +270,18 @@ static inline uint32_t fix_abs(fix16_t in)
     }
 }
 
+/* Convert fix16_t (32-bit) to fix8i_t (24-bit) */
+static inline fix8i_t fix16_to_fix8i(fix16_t value) {
+  fix8i_t result;
+  result.integer = (int8_t)((value >> 16) & 0xFF);  // Extract integer part
+  result.fraction = (uint16_t)(value & 0xFFFF);    // Keep lower 16-bit fraction
+  return result;
+}
+
+/* Convert fix8i_t (24-bit) back to fix16_t (32-bit) */
+static inline fix16_t fix8i_to_fix16(fix8i_t value) {
+  return (fix16_t)(((int32_t)value.integer << 16) | value.fraction);
+}
 
 /** Helper macro for F16C. Replace token with its number of characters/digits. */
 #define FIXMATH_TOKLEN(token) ( sizeof( #token ) - 1 )

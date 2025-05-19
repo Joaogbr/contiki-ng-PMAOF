@@ -37,7 +37,11 @@
 #include "net/linkaddr.h"
 
 /* Statistics with no update in FRESHNESS_EXPIRATION_TIMEOUT is not fresh */
+#ifdef LINK_STATS_CONF_FRESH_EXP_TIME
+#define FRESHNESS_EXPIRATION_TIME LINK_STATS_CONF_FRESH_EXP_TIME
+#else /* LINK_STATS_CONF_FRESH_EXP_TIME */
 #define FRESHNESS_EXPIRATION_TIME       (3 * 60 * (clock_time_t)CLOCK_SECOND)
+#endif /* LINK_STATS_CONF_FRESH_EXP_TIME */
 /* Half time for the freshness counter */
 #define FRESHNESS_HALF_LIFE             (15 * 60 * (clock_time_t)CLOCK_SECOND)
 /* Statistics are fresh if the freshness counter is FRESHNESS_TARGET or more */
@@ -151,14 +155,16 @@ struct link_stats {
   clock_time_t last_tx_time;  /* Last Tx timestamp */
   clock_time_t rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps */
   clock_time_t last_probe_time;  /* Last Probe (DIO/DIS) timestamp */
-  //clock_time_t last_lm_time; /* Last link metric timestamp */
+  clock_time_t nbr_rx_time[LINK_STATS_RSSI_ARR_LEN];  /* Last Rx timestamps for neighbor */
   uint16_t etx;               /* ETX using ETX_DIVISOR as fixed point divisor. Zero if not yet measured. */
   fix16_t rssi[LINK_STATS_RSSI_ARR_LEN]; /* Latest RSSI (received signal strength) values. LINK_STATS_RSSI_UNKNOWN if not yet measured. */
+  fix16_t nbr_rssi[LINK_STATS_RSSI_ARR_LEN]; /* Neighbor RSSI */
   uint8_t freshness;          /* Freshness of the statistics. Zero if no packets sent yet. */
   uint8_t failed_probes;          /* Number of lost probes. */
   uint8_t link_stats_metric_updated; /* Set when values are updated */
-  fix16_t last_mf; /* OF calculated link metric */
-  fix16_t last_rrssi; /* Remaining RSSI */
+  clock_time_t last_rx_time;  /* Last Rx timestamp */
+  fix16_t last_ssv; /* OF calculated link metric */
+  fix16_t last_ssr; /* Remaining RSSI */
 #if LINK_STATS_ETX_FROM_PACKET_COUNT
   uint8_t tx_count;           /* Tx count, used for ETX calculation */
   uint8_t ack_count;          /* ACK count, used for ETX calculation */
@@ -184,7 +190,7 @@ int link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time);
 int link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time);
 /* Returns number of RSSI measurements */
 #if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-uint8_t link_stats_get_rssi_count(const struct link_stats *stats, int fresh_only);
+uint8_t link_stats_get_rssi_count(const fix16_t rssi_arr[], const clock_time_t rx_time_arr[], int type);
 #endif
 /* Resets link-stats module */
 void link_stats_reset(void);
@@ -195,8 +201,10 @@ void link_stats_packet_sent(const linkaddr_t *lladdr, int status, int numtx);
 /* Packet input callback. Updates statistics for receptions on a given link */
 void link_stats_input_callback(const linkaddr_t *lladdr);
 /* Updates Objective Function result for a given link */
-void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t mf, fix16_t rrssi);
+void link_stats_metric_update_callback(const linkaddr_t *lladdr, fix16_t ssv, fix16_t ssr, clock_time_t rx_time);
 /* Updates last probing time for a given link */
 void link_stats_probe_callback(const linkaddr_t *lladdr, clock_time_t probe_time);
+/* Updates neighbor RSSI for a given link */
+void link_stats_nbr_rssi_callback(const linkaddr_t *lladdr, fix16_t nbr_rssi, clock_time_t time_since);
 
 #endif /* LINK_STATS_H_ */

@@ -31,28 +31,33 @@
 
 /* Logging */
 #define LOG_CONF_LEVEL_RPL                         LOG_LEVEL_INFO
-#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_WARN
-#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_WARN
+#define LOG_CONF_LEVEL_TCPIP                       LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_IPV6                        LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_6LOWPAN                     LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_MAC                         LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_FRAMER                      LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_COAP                        LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_LWM2M                       LOG_LEVEL_NONE
+#define LOG_CONF_LEVEL_6TOP                        LOG_LEVEL_NONE
 #define LOG_CONF_LEVEL_LS                          LOG_LEVEL_INFO
 #define TSCH_LOG_CONF_PER_SLOT                     0
 
 #define PROCESS_CONF_NUMEVENTS       32
 
 /* Enable printing of packet counters */
-#define LINK_STATS_CONF_PACKET_COUNTERS          1
+#define LINK_STATS_CONF_PACKET_COUNTERS          0
 #define LINK_STATS_CONF_ETX_DIVISOR              128
 //#define LINK_STATS_CONF_RSSI_ARR_LEN             10
 #define LINK_STATS_CONF_RSSI_WITH_EMANEXT        1
 #define LINK_STATS_CONF_MIN_RSSI_COUNT           3
+//#define LINK_STATS_CONF_FRESH_EXP_TIME           (1 * 60 * (clock_time_t)CLOCK_SECOND)
 
 /* Handle 16 neighbors */
-#define NBR_TABLE_CONF_MAX_NEIGHBORS    24
+#define NBR_TABLE_CONF_MAX_NEIGHBORS    20
 //#define NBR_TABLE_CONF_GC_GET_WORST            rpl_nbr_gc_get_worst_path
 
 /* Handle 16 routes    */
-#define NETSTACK_MAX_ROUTE_ENTRIES      24
+#define NETSTACK_MAX_ROUTE_ENTRIES      20
 
 /* RPL config */
 #define RPL_CONF_MOP RPL_MOP_NON_STORING
@@ -62,14 +67,14 @@
 #define RPL_CONF_DAG_MC RPL_DAG_MC_MOVFAC
 
 /* If always larger than the link cost, merely acts as a hop count (RFC6719)*/
-#define RPL_CONF_MIN_HOPRANKINC          200
+//#define RPL_CONF_MIN_HOPRANKINC          200
 //#define RPL_CONF_MAX_RANKINC             (10 * RPL_CONF_MIN_HOPRANKINC)
 
 #define RPL_CONF_PROBING_SEND_FUNC(instance, addr) dis_output((addr))
 
 //#define RPL_CONF_DIO_INTERVAL_MIN        12 //12
 //#define RPL_CONF_DIO_INTERVAL_DOUBLINGS  5 //8
-#define RPL_CONF_PROBING_INTERVAL        (40 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
+//#define RPL_CONF_PROBING_INTERVAL        (40 * CLOCK_SECOND) //(60 * CLOCK_SECOND)
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
