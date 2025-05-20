@@ -1764,7 +1764,7 @@
   <plugin>
     org.contikios.cooja.plugins.Mobility
     <plugin_config>
-      <positions>[CONFIG_DIR]/scenario_150_vehicles_positions_30min.dat</positions>
+      <positions>[CONFIG_DIR]/positionfiles/scenario_150_vehicles_positions_30min.dat</positions>
     </plugin_config>
     <bounds x="27" y="485" height="200" width="500" z="3" />
   </plugin>
