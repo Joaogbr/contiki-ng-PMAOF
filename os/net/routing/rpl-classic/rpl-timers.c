@@ -394,7 +394,7 @@ get_probing_delay(rpl_dag_t *dag)
   return ((RPL_PROBING_INTERVAL) / 2) + random_rand() % (RPL_PROBING_INTERVAL);
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 rpl_parent_t *
 get_probing_target(rpl_dag_t *dag)
 {
@@ -540,19 +540,11 @@ get_probing_target(rpl_dag_t *dag)
     while(p != NULL) {
       const struct link_stats *stats = rpl_get_parent_link_stats(p);
       if(p->dag == dag && stats != NULL) {
-#if RPL_DAG_MC == RPL_DAG_MC_RSSI
-        if(probing_target == NULL
-           || clock_now - stats->rx_time[0] > probing_target_age) {
-          probing_target = p;
-          probing_target_age = clock_now - stats->rx_time[0];
-        }
-#else
         if(probing_target == NULL
            || clock_now - stats->last_tx_time > probing_target_age) {
           probing_target = p;
           probing_target_age = clock_now - stats->last_tx_time;
         }
-#endif
       }
       p = nbr_table_next(rpl_parents, p);
     }
@@ -560,7 +552,7 @@ get_probing_target(rpl_dag_t *dag)
 
   return probing_target;
 }
-#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#endif /* RPL_WITH_PMAOF */
 /*---------------------------------------------------------------------------*/
 static rpl_dag_t *
 get_next_dag(rpl_instance_t *instance)
@@ -592,21 +584,12 @@ handle_probing_timer(void *ptr)
   /* Perform probing. */
   if(target_ipaddr != NULL) {
     const linkaddr_t *lladdr = rpl_get_parent_lladdr(probing_target);
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC || RPL_DAG_MC == RPL_DAG_MC_RSSI
-    LOG_INFO("probing %u %s last rx %lu s ago\n",
-             lladdr != NULL ? lladdr->u8[7] : 0x0,
-             instance->urgent_probing_target != NULL ? "(urgent)" : "",
-             probing_target != NULL && stats != NULL ?
-             (unsigned long)((clock_time() - stats->rx_time[0]) / CLOCK_SECOND) : 0
-             );
-#else
     LOG_INFO("probing %u %s last tx %lu s ago\n",
             lladdr != NULL ? lladdr->u8[7] : 0x0,
             instance->urgent_probing_target != NULL ? "(urgent)" : "",
             probing_target != NULL && stats != NULL ?
             (unsigned long)((clock_time() - stats->last_tx_time) / CLOCK_SECOND) : 0
             );
-#endif
 
     /* Send probe, e.g., a unicast DIO or DIS. */
     RPL_PROBING_SEND_FUNC(instance, target_ipaddr);
@@ -614,7 +597,7 @@ handle_probing_timer(void *ptr)
   }
 
   /* Schedule next probing. */
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
   /* Halve the probing interval if there are neighbours with insufficient RSSI samples. */
   if(target_ipaddr != NULL && (link_stats_get_rssi_count(stats->rssi, stats->rx_time, 0) < LINK_STATS_MIN_RSSI_COUNT ||
      (probing_target == instance->current_dag->preferred_parent &&
@@ -640,7 +623,7 @@ rpl_schedule_probing(rpl_instance_t *instance)
              handle_probing_timer, instance);
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 void
 rpl_schedule_probing_quick(rpl_instance_t *instance)
 {

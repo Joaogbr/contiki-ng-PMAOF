@@ -343,7 +343,7 @@ void rpl_schedule_dao_immediately(rpl_instance_t *);
 void rpl_schedule_unicast_dio_immediately(rpl_instance_t *instance);
 void rpl_cancel_dao(rpl_instance_t *instance);
 void rpl_schedule_probing(rpl_instance_t *instance);
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 void rpl_schedule_probing_quick(rpl_instance_t *instance);
 #endif
 void rpl_schedule_probing_now(rpl_instance_t *instance);

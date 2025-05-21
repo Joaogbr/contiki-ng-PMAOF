@@ -43,7 +43,6 @@
  * @{
  */
 
-#if 1
 #include <stdlib.h>
 #include "lib/fixmath.h"
 
@@ -57,91 +56,86 @@
 #define LOG_MODULE "RPL"
 #define LOG_LEVEL LOG_LEVEL_RPL
 
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-#ifdef MVMTOF_CONF_DRSSI_SCALE
-#define DRSSI_SCALE         MVMTOF_CONF_DRSSI_SCALE
-#else /* MVMTOF_CONF_DRSSI_SCALE */
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
+#ifdef PMAOF_CONF_DRSSI_SCALE
+#define DRSSI_SCALE         PMAOF_CONF_DRSSI_SCALE
+#else /* PMAOF_CONF_DRSSI_SCALE */
 #define DRSSI_SCALE         (uint16_t)100
-#endif /* MVMTOF_CONF_DRSSI_SCALE */
+#endif /* PMAOF_CONF_DRSSI_SCALE */
 
-#ifdef MVMTOF_CONF_MAX_LINK_METRIC
-#define MAX_LINK_METRIC         MVMTOF_CONF_MAX_LINK_METRIC
-#else /* MVMTOF_CONF_MAX_LINK_METRIC */
+#ifdef PMAOF_CONF_MAX_LINK_METRIC
+#define MAX_LINK_METRIC         PMAOF_CONF_MAX_LINK_METRIC
+#else /* PMAOF_CONF_MAX_LINK_METRIC */
 #define MAX_LINK_METRIC         20*DRSSI_SCALE
-#endif /* MVMTOF_CONF_MAX_LINK_METRIC */
+#endif /* PMAOF_CONF_MAX_LINK_METRIC */
 
-#ifdef MVMTOF_CONF_PARENT_SWITCH_THRESHOLD
-#define PARENT_SWITCH_THRESHOLD         MVMTOF_CONF_PARENT_SWITCH_THRESHOLD
-#else /* MVMTOF_CONF_PARENT_SWITCH_THRESHOLD */
+#ifdef PMAOF_CONF_PARENT_SWITCH_THRESHOLD
+#define PARENT_SWITCH_THRESHOLD         PMAOF_CONF_PARENT_SWITCH_THRESHOLD
+#else /* PMAOF_CONF_PARENT_SWITCH_THRESHOLD */
 #define PARENT_SWITCH_THRESHOLD         DRSSI_SCALE
-#endif /* MVMTOF_CONF_PARENT_SWITCH_THRESHOLD */
+#endif /* PMAOF_CONF_PARENT_SWITCH_THRESHOLD */
 
-#ifdef MVMTOF_CONF_MAX_PATH_COST
-#define MAX_PATH_COST         MVMTOF_CONF_MAX_PATH_COST
-#else /* MVMTOF_CONF_MAX_PATH_COST */
+#ifdef PMAOF_CONF_MAX_PATH_COST
+#define MAX_PATH_COST         PMAOF_CONF_MAX_PATH_COST
+#else /* PMAOF_CONF_MAX_PATH_COST */
 #define MAX_PATH_COST         320*DRSSI_SCALE
-#endif /* MVMTOF_CONF_MAX_PATH_COST */
+#endif /* PMAOF_CONF_MAX_PATH_COST */
 
-#ifdef MVMTOF_CONF_CF_ALPHA
-#define CF_ALPHA         MVMTOF_CONF_CF_ALPHA
-#else /* MVMTOF_CONF_CF_ALPHA */
+#ifdef PMAOF_CONF_CF_ALPHA
+#define CF_ALPHA         PMAOF_CONF_CF_ALPHA
+#else /* PMAOF_CONF_CF_ALPHA */
 #define CF_ALPHA         6.0f /* Correction factor that multiplies SSV */
-#endif /* MVMTOF_CONF_CF_ALPHA */
+#endif /* PMAOF_CONF_CF_ALPHA */
 
-#ifdef MVMTOF_CONF_CF_BETA
-#define CF_BETA         MVMTOF_CONF_CF_BETA
-#else /* MVMTOF_CONF_CF_BETA */
+#ifdef PMAOF_CONF_CF_BETA
+#define CF_BETA         PMAOF_CONF_CF_BETA
+#else /* PMAOF_CONF_CF_BETA */
 #define CF_BETA         4.0f /* Determines the point at which deceleration will impact SSV */
-#endif /* MVMTOF_CONF_CF_BETA */
+#endif /* PMAOF_CONF_CF_BETA */
 
-#ifdef MVMTOF_CONF_MAX_ABS_RSSI
-#define MAX_ABS_RSSI         MVMTOF_CONF_MAX_ABS_RSSI
-#else /* MVMTOF_CONF_MAX_ABS_RSSI */
+#ifdef PMAOF_CONF_MAX_ABS_RSSI
+#define MAX_ABS_RSSI         PMAOF_CONF_MAX_ABS_RSSI
+#else /* PMAOF_CONF_MAX_ABS_RSSI */
 #define MAX_ABS_RSSI         100 /* dBm */
-#endif /* MVMTOF_CONF_MAX_ABS_RSSI */
+#endif /* PMAOF_CONF_MAX_ABS_RSSI */
 
 
-#ifdef MVMTOF_CONF_PATH_COST_RED
-#define PATH_COST_RED         MVMTOF_CONF_PATH_COST_RED
-#else /* MVMTOF_CONF_PATH_COST_RED */
+#ifdef PMAOF_CONF_PATH_COST_RED
+#define PATH_COST_RED         PMAOF_CONF_PATH_COST_RED
+#else /* PMAOF_CONF_PATH_COST_RED */
 #define PATH_COST_RED         20*DRSSI_SCALE /* Max acceptable path cost */
-#endif /* MVMTOF_CONF_PATH_COST_RED */
+#endif /* PMAOF_CONF_PATH_COST_RED */
 
-#ifdef MVMTOF_CONF_SSV_LL_RED
-#define SSV_LL_RED         MVMTOF_CONF_SSV_LL_RED
-#else /* MVMTOF_CONF_SSV_LL_RED */
+#ifdef PMAOF_CONF_SSV_LL_RED
+#define SSV_LL_RED         PMAOF_CONF_SSV_LL_RED
+#else /* PMAOF_CONF_SSV_LL_RED */
 #define SSV_LL_RED         -1*((int16_t)DRSSI_SCALE) /* Min acceptable SSV */
-#endif /* MVMTOF_CONF_SSV_LL_RED */
+#endif /* PMAOF_CONF_SSV_LL_RED */
 
-#ifdef MVMTOF_CONF_SSV_UL_RED
-#define SSV_UL_RED         MVMTOF_CONF_SSV_UL_RED
-#else /* MVMTOF_CONF_SSV_UL_RED */
+#ifdef PMAOF_CONF_SSV_UL_RED
+#define SSV_UL_RED         PMAOF_CONF_SSV_UL_RED
+#else /* PMAOF_CONF_SSV_UL_RED */
 #define SSV_UL_RED         2*DRSSI_SCALE /* Max acceptable SSV */
-#endif /* MVMTOF_CONF_SSV_UL_RED */
+#endif /* PMAOF_CONF_SSV_UL_RED */
 
-#ifdef MVMTOF_CONF_ABS_RSSI_RED
-#define ABS_RSSI_RED         MVMTOF_CONF_ABS_RSSI_RED
-#else /* MVMTOF_CONF_ABS_RSSI_RED */
+#ifdef PMAOF_CONF_ABS_RSSI_RED
+#define ABS_RSSI_RED         PMAOF_CONF_ABS_RSSI_RED
+#else /* PMAOF_CONF_ABS_RSSI_RED */
 #define ABS_RSSI_RED         87 /* Max acceptable absolute RSSI */
-#endif /* MVMTOF_CONF_ABS_RSSI_RED */
+#endif /* PMAOF_CONF_ABS_RSSI_RED */
 
-#ifdef MVMTOF_CONF_SSR_RED
-#define SSR_RED         MVMTOF_CONF_SSR_RED
-#else /* MVMTOF_CONF_SSR_RED */
+#ifdef PMAOF_CONF_SSR_RED
+#define SSR_RED         PMAOF_CONF_SSR_RED
+#else /* PMAOF_CONF_SSR_RED */
 #define SSR_RED         ABS_RSSI_RED /* Min acceptable SSR */
-#endif /* MVMTOF_CONF_SSR_RED */
+#endif /* PMAOF_CONF_SSR_RED */
 
 
-#ifdef MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT
-#define LINK_COST_LOW_RSSI_COUNT         MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT
-#else /* MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT */
+#ifdef PMAOF_CONF_LINK_COST_LOW_RSSI_COUNT
+#define LINK_COST_LOW_RSSI_COUNT         PMAOF_CONF_LINK_COST_LOW_RSSI_COUNT
+#else /* PMAOF_CONF_LINK_COST_LOW_RSSI_COUNT */
 #define LINK_COST_LOW_RSSI_COUNT         SSV_LL_RED
-#endif /* MVMTOF_CONF_LINK_COST_LOW_RSSI_COUNT */
-
-#elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-#define MAX_LINK_METRIC     1024 /* dBm */
-#define PARENT_SWITCH_THRESHOLD 48 /* dBm */
-#define MAX_PATH_COST      4096   /* dBm */
+#endif /* PMAOF_CONF_LINK_COST_LOW_RSSI_COUNT */
 #else
 /*
  * RFC6551 and RFC6719 do not mandate the use of a specific formula to
@@ -168,34 +162,24 @@
 #define RPL_MRHOF_SQUARED_ETX 0
 #endif /* RPL_MRHOF_CONF_SQUARED_ETX */
 
-#if !RPL_MRHOF_SQUARED_ETX
 /* Configuration parameters of RFC6719. Reject parents that have a higher
-   link metric than the following. The default value is 512 but we use 1024. */
-#define MAX_LINK_METRIC     (8 * ((uint16_t)LINK_STATS_ETX_DIVISOR)) /* Eq ETX of 8 */
-
-/*
- * Hysteresis of MRHOF: the rank must differ more than
- * PARENT_SWITCH_THRESHOLD_DIV in order to switch preferred
- * parent. Default in RFC6719: 192, eq ETX of 1.5.  We use a more
- * aggressive setting: 96, eq ETX of 0.75.
- */
-#define PARENT_SWITCH_THRESHOLD (uint8_t)(0.75 * LINK_STATS_ETX_DIVISOR) /* Eq ETX of 0.75 */
-#else /* !RPL_MRHOF_SQUARED_ETX */
-#define MAX_LINK_METRIC     (16 * ((uint16_t)LINK_STATS_ETX_DIVISOR)) /* Eq ETX of 16 */
-#define PARENT_SWITCH_THRESHOLD (uint8_t)(1.25 * LINK_STATS_ETX_DIVISOR) /* Eq ETX of 1.25
-                                                                            (results in a
-                                                                            churn comparable
-                                                                            to the threshold
-                                                                            of 96 in the
-                                                                            non-squared case) */
-#endif /* !RPL_MRHOF_SQUARED_ETX */
+ * link metric than the following. The default value is 512. */
+#define MAX_LINK_METRIC     512 /* Eq ETX of 4 */
 
 /* Reject parents that have a higher path cost than the following. */
-#define MAX_PATH_COST      (256 * ((uint16_t)LINK_STATS_ETX_DIVISOR))   /* Eq path ETX of 256 */
-#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#define MAX_PATH_COST      32768   /* Eq path ETX of 256 */
+
+#if !RPL_MRHOF_SQUARED_ETX
+/* Hysteresis of MRHOF: the rank must differ more than PARENT_SWITCH_THRESHOLD_DIV
+ * in order to switch preferred parent. Default in RFC6719: 192, eq ETX of 1.5. */
+#define PARENT_SWITCH_THRESHOLD 192 /* Eq ETX of 1.5 */
+#else /* !RPL_MRHOF_SQUARED_ETX */
+#define PARENT_SWITCH_THRESHOLD 384 /* Eq ETX of sqrt(3) */
+#endif /* !RPL_MRHOF_SQUARED_ETX */
+#endif /* RPL_DAG_MC == RPL_DAG_MC_SSV */
 
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 static uint16_t
 sadd_u16(uint16_t a, uint16_t b)
 {
@@ -241,7 +225,7 @@ compute_link_cost(fix16_t ssv, fix16_t ssr)
 static void
 reset(rpl_dag_t *dag)
 {
-  LOG_INFO("Reset MVMTOF\n");
+  LOG_INFO("Reset PMAOF\n");
 }
 /*---------------------------------------------------------------------------*/
 #if RPL_WITH_DAO_ACK
@@ -252,7 +236,7 @@ dao_ack_callback(rpl_parent_t *p, int status)
     return;
   }
   /* Here we need to handle failed DAO's and other stuff. */
-  LOG_DBG("MVMTOF - DAO ACK received with status: %d\n", status);
+  LOG_DBG("PMAOF - DAO ACK received with status: %d\n", status);
   if(status >= RPL_DAO_ACK_UNABLE_TO_ACCEPT) {
     /* punish the ETX as if this was 10 packets lost */
     link_stats_packet_sent(rpl_get_parent_lladdr(p), MAC_TX_OK, 10);
@@ -268,7 +252,7 @@ parent_link_metric(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   if(stats != NULL) {
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
     if(stats->link_stats_metric_updated) {
       /* Get the count of available RSSI measurements. */
       uint8_t rssi_cnt = link_stats_get_rssi_count(stats->rssi, stats->rx_time, 0);
@@ -375,22 +359,14 @@ parent_link_metric(rpl_parent_t *p)
       }
     }
     return (uint16_t) MIN(fix16_to_int(compute_link_cost(stats->last_ssv, stats->last_ssr)), 0xffff);
-#elif RPL_DAG_MC == RPL_DAG_MC_RSSI
-    if(stats->rssi[0] != fix16_from_int(LINK_STATS_RSSI_UNKNOWN)) {
-      int16_t arssi = 10 * fix16_to_int(fix_abs(stats->rssi[0]));
-      LOG_DBG("From: ");
-      LOG_DBG_6ADDR(rpl_parent_get_ipaddr(p));
-      LOG_DBG_(" -> Current RSSI: %d\n", arssi);
-      return (uint16_t)MIN(arssi, 0xffff);
-    }
-#else /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#else /* RPL_DAG_MC == RPL_DAG_MC_SSV */
 #if RPL_MRHOF_SQUARED_ETX
     uint32_t squared_etx = ((uint32_t)stats->etx * stats->etx) / LINK_STATS_ETX_DIVISOR;
     return (uint16_t)MIN(squared_etx, 0xffff);
 #else /* RPL_MRHOF_SQUARED_ETX */
     return stats->etx;
 #endif /* RPL_MRHOF_SQUARED_ETX */
-#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#endif /* RPL_DAG_MC == RPL_DAG_MC_SSV */
   }
   return 0xffff;
 }
@@ -429,10 +405,7 @@ parent_path_cost(rpl_parent_t *p)
   case RPL_DAG_MC_ENERGY:
     base = p->mc.obj.energy.energy_est << 8;
     break;
-  case RPL_DAG_MC_RSSI:
-    base = p->mc.obj.rssi;
-    break;
-  case RPL_DAG_MC_MOVFAC:
+  case RPL_DAG_MC_SSV:
     base = p->mc.obj.movfac.ssv;
     break;
   default:
@@ -464,7 +437,7 @@ rank_via_parent(rpl_parent_t *p)
   return MAX(MIN((uint32_t)p->rank + min_hoprankinc, 0xffff), path_cost);
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 static uint8_t
 parent_is_acceptable(rpl_parent_t *p)
 {
@@ -498,7 +471,7 @@ parent_has_usable_link(rpl_parent_t *p)
   if(p == NULL || p->dag == NULL || p->dag->instance == NULL) {
     return 0;
   }
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
   /* Exclude links with too high link metrics  */
   return (stats != NULL) && parent_link_metric(p) <= MAX_LINK_METRIC &&
@@ -506,7 +479,7 @@ parent_has_usable_link(rpl_parent_t *p)
 #else
   /* Exclude links with too high link metrics  */
   return parent_link_metric(p) <= MAX_LINK_METRIC;
-#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#endif /* RPL_WITH_PMAOF */
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -537,7 +510,7 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
   p1_cost = parent_path_cost(p1);
   p2_cost = parent_path_cost(p2);
 
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
   rpl_dag_t *dag = p1->dag; // Both parents are in the same DAG.
   if((p1 == dag->preferred_parent || p2 == dag->preferred_parent)) {
     if(p1_cost < sadd_u16(p2_cost, PARENT_SWITCH_THRESHOLD) &&
@@ -554,7 +527,7 @@ best_parent(rpl_parent_t *p1, rpl_parent_t *p2)
       return dag->preferred_parent;
     }
   }
-#endif /* RPL_DAG_MC == RPL_DAG_MC_MOVFAC */
+#endif /* RPL_WITH_PMAOF */
 
   return p1_cost < p2_cost ? p1 : p2;
 }
@@ -627,11 +600,7 @@ update_metric_container(rpl_instance_t *instance)
        of the path metric. */
     instance->mc.obj.energy.energy_est = path_cost >> 8;
     break;
-  case RPL_DAG_MC_RSSI:
-    instance->mc.length = sizeof(instance->mc.obj.rssi);
-    instance->mc.obj.rssi = path_cost;
-    break;
-  case RPL_DAG_MC_MOVFAC:
+  case RPL_DAG_MC_SSV:
     instance->mc.length = 3;
     if(is_root) {
       instance->mc.obj.movfac.hc = 0;
@@ -641,29 +610,28 @@ update_metric_container(rpl_instance_t *instance)
     instance->mc.obj.movfac.ssv = path_cost;
     break;
   default:
-    LOG_WARN("MVMTOF, non-supported MC %u\n", instance->mc.type);
+    LOG_WARN("PMAOF, non-supported MC %u\n", instance->mc.type);
     break;
   }
 }
 #endif /* RPL_WITH_MC */
 /*---------------------------------------------------------------------------*/
-rpl_of_t rpl_mvmtof = {
+rpl_of_t rpl_pmaof = {
   reset,
 #if RPL_WITH_DAO_ACK
   dao_ack_callback,
 #endif
   parent_link_metric,
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  parent_is_acceptable,
-#endif
   parent_has_usable_link,
   parent_path_cost,
   rank_via_parent,
   best_parent,
   best_dag,
   update_metric_container,
-  RPL_OCP_MVMTOF
-};
+  RPL_OCP_PMAOF,
+#if RPL_WITH_PMAOF
+  parent_is_acceptable
 #endif
+};
 
 /** @}*/

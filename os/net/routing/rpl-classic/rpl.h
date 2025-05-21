@@ -59,7 +59,7 @@ typedef uint16_t rpl_ocp_t;
 #define RPL_DAG_MC_ETX                  7 /* Expected Transmission Count */
 #define RPL_DAG_MC_LC                   8 /* Link Color */
 #define RPL_DAG_MC_RSSI                 9 /* Received Signal Strength Indicator */
-#define RPL_DAG_MC_MOVFAC               10 /* Movement Factor */
+#define RPL_DAG_MC_SSV                  10 /* Movement Factor */
 
 /* IANA Routing Metric/Constraint Common Header Flag field as defined
    in RFC6551. (bit indexes) */
@@ -89,7 +89,7 @@ typedef uint16_t rpl_ocp_t;
 /* IANA Objective Code Point as defined in RFC6550. */
 #define RPL_OCP_OF0     0
 #define RPL_OCP_MRHOF   1
-#define RPL_OCP_MVMTOF   2
+#define RPL_OCP_PMAOF   2
 
 struct rpl_metric_object_energy {
   uint8_t flags;
@@ -219,9 +219,6 @@ struct rpl_of {
   void (*dao_ack_callback)(rpl_parent_t *, int status);
 #endif
   uint16_t (*parent_link_metric)(rpl_parent_t *);
-#if RPL_OF_OCP == RPL_OCP_MVMTOF && RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-  uint8_t (*parent_is_acceptable)(rpl_parent_t *);
-#endif
   int (*parent_has_usable_link)(rpl_parent_t *);
   uint16_t (*parent_path_cost)(rpl_parent_t *);
   rpl_rank_t (*rank_via_parent)(rpl_parent_t *);
@@ -229,6 +226,7 @@ struct rpl_of {
   rpl_dag_t *(*best_dag)(rpl_dag_t *, rpl_dag_t *);
   void (*update_metric_container)( rpl_instance_t *);
   rpl_ocp_t ocp;
+  uint8_t (*parent_is_acceptable)(rpl_parent_t *);// Custom field, use NULL if not used
 };
 typedef struct rpl_of rpl_of_t;
 
@@ -297,15 +295,12 @@ int rpl_ext_header_hbh_update(uint8_t *, int);
 void rpl_insert_header(void);
 bool rpl_ext_header_remove(void);
 const struct link_stats *rpl_get_parent_link_stats(rpl_parent_t *p);
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-int rpl_parent_tx_fresh(rpl_parent_t *p);
-int rpl_parent_rx_fresh(rpl_parent_t *p);
-int rpl_pref_parent_rx_fresh(rpl_parent_t *p);
-int rpl_parent_probe_recent(rpl_parent_t *p);
+#if RPL_WITH_PMAOF
 uint16_t rpl_get_parent_path_cost(rpl_parent_t *p);
-#else
-int rpl_parent_is_fresh(rpl_parent_t *p);
+int rpl_parent_probe_recent(rpl_parent_t *p);
+int rpl_pref_parent_rx_fresh(rpl_parent_t *p);
 #endif
+int rpl_parent_is_fresh(rpl_parent_t *p);
 int rpl_parent_is_reachable(rpl_parent_t *p);
 uint16_t rpl_get_parent_link_metric(rpl_parent_t *p);
 rpl_rank_t rpl_rank_via_parent(rpl_parent_t *p);

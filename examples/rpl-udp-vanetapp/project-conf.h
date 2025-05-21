@@ -60,10 +60,15 @@
 
 /* RPL config */
 #define RPL_CONF_MOP RPL_MOP_NON_STORING
-#define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
-#define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
+#define RPL_CONF_SUPPORTED_OFS {&rpl_of0, &rpl_mrhof, &rpl_pmaof}
+#define RPL_CONF_WITH_PMAOF 1
+#if RPL_CONF_WITH_PMAOF
+#define RPL_CONF_OF_OCP RPL_OCP_PMAOF
 #define RPL_CONF_WITH_MC 1
-#define RPL_CONF_DAG_MC RPL_DAG_MC_MOVFAC
+#define RPL_CONF_DAG_MC RPL_DAG_MC_SSV
+#else
+#define RPL_CONF_OF_OCP RPL_OCP_MRHOF
+#endif
 
 /* If always larger than the link cost, merely acts as a hop count (RFC6719)*/
 //#define RPL_CONF_MIN_HOPRANKINC          200
@@ -77,12 +82,12 @@
 //#define RPL_CONF_DIS_INTERVAL            30 //60
 //#define RPL_CONF_WITH_DAO_ACK            1 //0
 
-#define MVMTOF_CONF_CF_ALPHA      0.5f
-//#define MVMTOF_CONF_CF_ALPHA      5.0f /* Linear RSSI */
-#define MVMTOF_CONF_CF_BETA       1.0f
-#define MVMTOF_CONF_MAX_ABS_RSSI  95 /* dBm */
-#define MVMTOF_CONF_ABS_RSSI_RED  87
-#define MVMTOF_CONF_SSR_RED     2*MVMTOF_CONF_ABS_RSSI_RED
+#define PMAOF_CONF_CF_ALPHA      0.5f
+//#define PMAOF_CONF_CF_ALPHA      5.0f /* Linear RSSI */
+#define PMAOF_CONF_CF_BETA       1.0f
+#define PMAOF_CONF_MAX_ABS_RSSI  95 /* dBm */
+#define PMAOF_CONF_ABS_RSSI_RED  87
+#define PMAOF_CONF_SSR_RED     2*PMAOF_CONF_ABS_RSSI_RED
 
 /* Application settings */
 #define APP_WARM_UP_PERIOD_SEC 120

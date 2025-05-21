@@ -61,10 +61,15 @@
 
 /* RPL config */
 #define RPL_CONF_MOP RPL_MOP_NON_STORING
-#define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
-#define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
+#define RPL_CONF_SUPPORTED_OFS {&rpl_of0, &rpl_mrhof, &rpl_pmaof}
+#define RPL_CONF_WITH_PMAOF 1
+#if RPL_CONF_WITH_PMAOF
+#define RPL_CONF_OF_OCP RPL_OCP_PMAOF
 #define RPL_CONF_WITH_MC 1
-#define RPL_CONF_DAG_MC RPL_DAG_MC_MOVFAC
+#define RPL_CONF_DAG_MC RPL_DAG_MC_SSV
+#else
+#define RPL_CONF_OF_OCP RPL_OCP_MRHOF
+#endif
 
 /* If always larger than the link cost, merely acts as a hop count (RFC6719)*/
 //#define RPL_CONF_MIN_HOPRANKINC          200

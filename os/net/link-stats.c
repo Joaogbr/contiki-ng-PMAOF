@@ -105,7 +105,7 @@ link_stats_tx_fresh(const struct link_stats *stats, clock_time_t exp_time)
       && stats->freshness >= FRESHNESS_TARGET;
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
 /* Are the receptions fresh? */
 int
 link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time)
@@ -123,7 +123,7 @@ link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time)
       && clock_time() - stats->last_probe_time < exp_time;
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
 /* Are the receptions fresh? */
 uint8_t
 link_stats_get_rssi_count(const fix16_t rssi_arr[], const clock_time_t rx_time_arr[], int fresh_only)
@@ -311,6 +311,7 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     /* Initialize RSSI */
     stats->rssi[0] = fix16_from_int(packet_rssi);
   } else {
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
     fix16_t last_rssi;
     clock_time_t last_rx_time = clock_time();
 #if LINK_STATS_RSSI_WITH_EMANEXT
@@ -323,8 +324,6 @@ link_stats_input_callback(const linkaddr_t *lladdr)
     last_rssi = fix16_div(fix16_add(stats->rssi[0] * (EWMA_SCALE - EWMA_ALPHA),
                        fix16_from_int(packet_rssi * EWMA_ALPHA)), fix16_from_int(EWMA_SCALE)); // If alpha == 100: no memory
 #endif
-
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
     if(last_rx_time - stats->rx_time[0] >= STATIC_DET_TIME_THRESH ||
        fix_abs(fix16_sub(last_rssi, stats->rssi[0])) >= fix16_from_float(STATIC_DET_RSSI_THRESH)) {
       /* Update RSSI and Rx timestamp arrays */

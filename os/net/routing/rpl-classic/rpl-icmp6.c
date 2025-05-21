@@ -394,17 +394,7 @@ dio_input(void)
       } else if(dio.mc.type == RPL_DAG_MC_ENERGY) {
         dio.mc.obj.energy.flags = buffer[i + 6];
         dio.mc.obj.energy.energy_est = buffer[i + 7];
-      } else if(dio.mc.type == RPL_DAG_MC_RSSI) {
-        dio.mc.obj.rssi = get16(buffer, i + 6);
-
-        LOG_DBG("DAG MC: type %u, flags %u, aggr %u, prec %u, length %u, abs RSSI %u dBm\n",
-                (unsigned)dio.mc.type,
-                (unsigned)dio.mc.flags,
-                (unsigned)dio.mc.aggr,
-                (unsigned)dio.mc.prec,
-                (unsigned)dio.mc.length,
-                (unsigned)dio.mc.obj.rssi);
-      } else if(dio.mc.type == RPL_DAG_MC_MOVFAC) {
+      } else if(dio.mc.type == RPL_DAG_MC_SSV) {
         dio.mc.obj.movfac.hc = buffer[i + 6];
         dio.mc.obj.movfac.ssv = get16(buffer, i + 7);
         dio.mc.obj.movfac.par_rssi = get32(buffer, i + 9);
@@ -577,7 +567,7 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
     instance->of->update_metric_container(instance);
 
     buffer[pos++] = RPL_OPTION_DAG_METRIC_CONTAINER;
-    buffer[pos++] = 4 + 2 + (1 + 4 + 4)*(instance->mc.type == RPL_DAG_MC_MOVFAC);
+    buffer[pos++] = 4 + 2 + (1 + 4 + 4)*(instance->mc.type == RPL_DAG_MC_SSV);
     buffer[pos++] = instance->mc.type;
     buffer[pos++] = instance->mc.flags >> 1;
     buffer[pos] = (instance->mc.flags & 1) << 7;
@@ -590,11 +580,7 @@ dio_output(rpl_instance_t *instance, uip_ipaddr_t *uc_addr)
       buffer[pos++] = 2;
       buffer[pos++] = instance->mc.obj.energy.flags;
       buffer[pos++] = instance->mc.obj.energy.energy_est;
-    } else if(instance->mc.type == RPL_DAG_MC_RSSI) {
-      buffer[pos++] = 2;
-      set16(buffer, pos, instance->mc.obj.rssi);
-      pos += 2;
-    } else if(instance->mc.type == RPL_DAG_MC_MOVFAC) {
+    } else if(instance->mc.type == RPL_DAG_MC_SSV) {
       buffer[pos++] = 11;
       buffer[pos++] = instance->mc.obj.movfac.hc;
       set16(buffer, pos, instance->mc.obj.movfac.ssv);

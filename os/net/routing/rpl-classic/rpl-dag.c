@@ -67,7 +67,7 @@ void RPL_CALLBACK_PARENT_SWITCH(rpl_parent_t *old, rpl_parent_t *new);
 #endif /* RPL_CALLBACK_PARENT_SWITCH */
 
 /*---------------------------------------------------------------------------*/
-extern rpl_of_t rpl_of0, rpl_mrhof, rpl_mvmtof;
+extern rpl_of_t rpl_of0, rpl_mrhof, rpl_pmaof;
 static rpl_of_t *const objective_functions[] = RPL_SUPPORTED_OFS;
 
 /*---------------------------------------------------------------------------*/
@@ -208,7 +208,7 @@ rpl_get_parent_link_stats(rpl_parent_t *p)
   return link_stats_from_lladdr(lladdr);
 }
 /*---------------------------------------------------------------------------*/
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
 uint16_t
 rpl_get_parent_path_cost(rpl_parent_t *p)
 {
@@ -220,13 +220,6 @@ rpl_get_parent_path_cost(rpl_parent_t *p)
     }
   }
   return 0xffff;
-}
-/*---------------------------------------------------------------------------*/
-int
-rpl_parent_is_fresh(rpl_parent_t *p)
-{
-  const struct link_stats *stats = rpl_get_parent_link_stats(p);
-  return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
 }
 /*---------------------------------------------------------------------------*/
 int
@@ -250,19 +243,18 @@ rpl_pref_parent_rx_fresh(rpl_parent_t *p)
          link_stats_recent_probe(stats, FRESHNESS_EXPIRATION_TIME >> 2);
 }
 /*---------------------------------------------------------------------------*/
-#else
+#endif
 int
 rpl_parent_is_fresh(rpl_parent_t *p)
 {
   const struct link_stats *stats = rpl_get_parent_link_stats(p);
-#if RPL_DAG_MC == RPL_DAG_MC_RSSI
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
   return link_stats_rx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
 #else
   return link_stats_tx_fresh(stats, FRESHNESS_EXPIRATION_TIME);
 #endif
 }
 /*---------------------------------------------------------------------------*/
-#endif
 int
 rpl_parent_is_reachable(rpl_parent_t *p)
 {
@@ -279,13 +271,8 @@ rpl_parent_is_reachable(rpl_parent_t *p)
 #endif /* UIP_ND6_SEND_NS */
 
   /* If we don't have fresh link information, assume the parent is reachable. */
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   return !rpl_parent_is_fresh(p) ||
          p->dag->instance->of->parent_has_usable_link(p);
-#else
-  return !rpl_parent_is_fresh(p) ||
-         p->dag->instance->of->parent_has_usable_link(p);
-#endif
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -947,17 +934,10 @@ filter_parent(rpl_parent_t * p, rpl_dag_t *dag, int fresh_only)
     return 1;
   }
 
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
   if(fresh_only && !rpl_parent_is_fresh(p)) {
     /* Filter out non-fresh parents if fresh_only is set. */
     return 1;
   }
-#else
-  if(fresh_only && !rpl_parent_is_fresh(p)) {
-    /* Filter out non-fresh parents if fresh_only is set. */
-    return 1;
-  }
-#endif
 
 #if UIP_ND6_SEND_NS
   /* Exclude links to a neighbor that is not reachable at a NUD level. */
@@ -982,12 +962,12 @@ best_parent(rpl_dag_t *dag, int fresh_only)
 
   of = dag->instance->of;
 
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
   // Maintain the stability of the preferred parent if performance is acceptable.
   int pp_is_acceptable = 0;
   if(dag->preferred_parent != NULL &&
      !filter_parent(dag->preferred_parent, dag, fresh_only)) {
-    pp_is_acceptable = of->parent_is_acceptable(dag->preferred_parent);
+    pp_is_acceptable = !of->parent_is_acceptable || of->parent_is_acceptable(dag->preferred_parent);
     if(pp_is_acceptable) {
       return dag->preferred_parent;
     }
@@ -1016,16 +996,10 @@ rpl_select_parent(rpl_dag_t *dag)
 
   if(best != NULL) {
 #if RPL_WITH_PROBING
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
-    if(rpl_parent_is_fresh(best)) {
-      rpl_set_preferred_parent(dag, best);
-      dag->instance->urgent_probing_target = NULL;
-#else
     if(rpl_parent_is_fresh(best)) {
       rpl_set_preferred_parent(dag, best);
       /* Unschedule any already scheduled urgent probing. */
       dag->instance->urgent_probing_target = NULL;
-#endif
     } else {
       /* The best is not fresh. Look for the best fresh now. */
       rpl_parent_t *best_fresh = best_parent(dag, 1);
@@ -1036,7 +1010,7 @@ rpl_select_parent(rpl_dag_t *dag)
         /* Use best fresh */
         rpl_set_preferred_parent(dag, best_fresh);
       }
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_WITH_PMAOF
       if(!rpl_parent_probe_recent(best)) {
         /* Probe the best parent shortly in order to get a fresh estimate. */
         dag->instance->urgent_probing_target = best;

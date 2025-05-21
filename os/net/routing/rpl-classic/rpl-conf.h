@@ -115,7 +115,7 @@
 #ifdef RPL_CONF_SUPPORTED_OFS
 #define RPL_SUPPORTED_OFS RPL_CONF_SUPPORTED_OFS
 #else /* RPL_CONF_SUPPORTED_OFS */
-#define RPL_SUPPORTED_OFS {&rpl_mrhof}
+#define RPL_SUPPORTED_OFS {&rpl_of0, &rpl_mrhof, &rpl_pmaof}
 #endif /* RPL_CONF_SUPPORTED_OFS */
 
 /*
@@ -395,6 +395,12 @@
 #define RPL_DIS_START_DELAY             RPL_CONF_DIS_START_DELAY
 #else
 #define RPL_DIS_START_DELAY             5
+#endif
+
+#ifdef  RPL_CONF_WITH_PMAOF
+#define RPL_WITH_PMAOF             RPL_CONF_WITH_PMAOF
+#else
+#define RPL_WITH_PMAOF             0
 #endif
 
 #endif /* RPL_CONF_H */

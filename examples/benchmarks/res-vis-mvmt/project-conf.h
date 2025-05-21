@@ -41,9 +41,10 @@
 #define LINK_STATS_CONF_PACKET_COUNTERS          1
 
 /* RPL config */
-#define RPL_CONF_OF_OCP RPL_OCP_MVMTOF
-#define RPL_CONF_SUPPORTED_OFS {&rpl_mvmtof}
-#define RPL_CONF_DAG_MC RPL_DAG_MC_RSSI
+#define RPL_CONF_OF_OCP RPL_OCP_PMAOF
+#define RPL_CONF_SUPPORTED_OFS {&rpl_pmaof}
+#define RPL_CONF_WITH_MC 1
+#define RPL_CONF_DAG_MC RPL_DAG_MC_SSV
 
 /* Application settings */
 #define APP_SEND_INTERVAL_SEC 10

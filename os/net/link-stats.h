@@ -183,13 +183,13 @@ const linkaddr_t *link_stats_get_lladdr(const struct link_stats *);
 /* Are the transmissions fresh? */
 int link_stats_tx_fresh(const struct link_stats *stats, clock_time_t exp_time);
 /* Are the receptions fresh? */
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
 int link_stats_rx_fresh(const struct link_stats *stats, clock_time_t exp_time);
 #endif
 /* Was the link probed recently? */
 int link_stats_recent_probe(const struct link_stats *stats, clock_time_t exp_time);
 /* Returns number of RSSI measurements */
-#if RPL_DAG_MC == RPL_DAG_MC_MOVFAC
+#if RPL_DAG_MC == RPL_DAG_MC_SSV
 uint8_t link_stats_get_rssi_count(const fix16_t rssi_arr[], const clock_time_t rx_time_arr[], int type);
 #endif
 /* Resets link-stats module */

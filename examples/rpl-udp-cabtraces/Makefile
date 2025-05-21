@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = udp-client udp-client-cam udp-client-sleep udp-server
+CONTIKI_PROJECT = udp-client udp-server
 all: $(CONTIKI_PROJECT)
 
 PLATFORMS_EXCLUDE = sky native
