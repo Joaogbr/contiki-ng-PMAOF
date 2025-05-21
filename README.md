@@ -1,3 +1,5 @@
+This repository contains the implementation of PMA-OF for Contiki-NG. The test scenarios described in the article "A Predictive Mobility-Aware RPL Objective Function for Improved Routing in Urban IoT Networks" are located in at examples/rpl-udp-vanetapp and examples/rpl-udp-cabtraces.
+
 <img src="https://github.com/contiki-ng/contiki-ng.github.io/blob/master/images/logo/Contiki_logo_2RGB.png" alt="Logo" width="256">
 
 # Contiki-NG: The OS for Next Generation IoT Devices
